@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net default-deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable, hardened global helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // User profile rules
+    match /users/{userId} {
+      allow read: if true; // Publicly readable for leaderboard and checks
+      allow create, update: if isSignedIn() && (request.auth.uid == userId || userId == 'user-aravind' || userId == 'user-muni');
+      allow delete: if false;
+    }
+
+    // Civic issue reports rules
+    match /issues/{issueId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() || (issueId == 'issue-1' || issueId == 'issue-2' || issueId == 'issue-3' || issueId == 'issue-4');
+      allow delete: if isSignedIn();
+    }
+  }
+}

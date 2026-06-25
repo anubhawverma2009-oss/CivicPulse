@@ -1,0 +1,78 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile representing citizen or authority users in CivicPulse",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["citizen", "authority"] },
+        "location": { "type": "string" },
+        "civicScore": { "type": "number" },
+        "badges": { "type": "array" },
+        "savedIssues": { "type": "array" },
+        "createdAt": { "type": "string" },
+        "department": { "type": "string" },
+        "designation": { "type": "string" },
+        "bio": { "type": "string" },
+        "documentVerified": { "type": "boolean" },
+        "money": { "type": "number" },
+        "onboardingComplete": { "type": "boolean" },
+        "civicCoins": { "type": "number" },
+        "redeemedRewards": { "type": "array" }
+      },
+      "required": ["uid", "email", "name", "role", "location", "civicScore", "badges", "savedIssues", "createdAt"]
+    },
+    "IssueReport": {
+      "title": "IssueReport",
+      "description": "Civic issue report created by community members",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string", "enum": ["POTHOLE", "STREETLIGHT", "GARBAGE", "WATER LEAKAGE", "FOOTPATH", "TRAFFIC"] },
+        "severity": { "type": "number" },
+        "location": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "imageUrl": { "type": "string" },
+        "pollQuestion": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorRole": { "type": "string", "enum": ["citizen", "authority"] },
+        "tags": { "type": "array" },
+        "status": { "type": "string", "enum": ["pending", "in_progress", "resolved"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "pollVotes": { "type": "object" },
+        "resolutionVotes": { "type": "object" },
+        "votedUserIds": { "type": "object" },
+        "votedResolutionUserIds": { "type": "object" },
+        "responses": { "type": "array" },
+        "comments": { "type": "array" },
+        "likes": { "type": "number" },
+        "shares": { "type": "number" },
+        "aiConfidence": { "type": "number" },
+        "isReal": { "type": "boolean" },
+        "hazards": { "type": "array" },
+        "peerEvidence": { "type": "array" },
+        "triage": { "type": "object" }
+      },
+      "required": ["id", "title", "description", "category", "severity", "location", "latitude", "longitude", "authorId", "authorName", "authorRole", "tags", "status", "createdAt", "updatedAt", "pollVotes", "resolutionVotes"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles for auth and civic statistics"
+    },
+    "issues/{issueId}": {
+      "schema": "IssueReport",
+      "description": "Issues and their updates/verification states"
+    }
+  }
+}
