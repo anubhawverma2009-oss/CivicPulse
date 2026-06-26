@@ -96,8 +96,8 @@ CivicPulse AI solves this through:
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/civicpulse-ai.git
-cd civicpulse-ai
+git clone https://github.com/anubhawverma2009-oss/CivicPulse.git
+cd CivicPulse
 
 # Install dependencies
 npm install
@@ -110,7 +110,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:3000 in your browser.` in your browser.
 
 ---
 
@@ -145,19 +145,3 @@ gcloud run deploy civicpulse-ai \
   --platform managed \
   --region asia-southeast1 \
   --allow-unauthenticated
-```
-
----
-
-## Folder Structure
-civicpulse-ai/
-├── src/
-│ ├── components/
-│ ├── firebase/
-│ ├── App.tsx
-│ └── main.tsx
-├── public/
-├── .env.example
-├── package.json
-├── vite.config.ts
-└── README.md
