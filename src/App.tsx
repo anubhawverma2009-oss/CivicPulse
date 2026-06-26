@@ -13,7 +13,7 @@ import { CivicAuth, CivicDatabase } from "./firebase/config";
 import { 
   Building, LogOut, Sparkles, MessageSquare, Trophy, User, PlusCircle, 
   MapPin, HelpCircle, Bell, Volume2, ShieldCheck, CheckCircle, Compass, Gift,
-  MoreHorizontal, RotateCw, Check, ChevronDown, Menu, X
+  MoreHorizontal, RotateCw, Check, ChevronDown, Menu, X, Search
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { findClosestLocation, detectLocationByIP, detectLocationByGPS } from "./utils/location";
@@ -32,6 +32,8 @@ export default function App() {
   const [showMoreDropdown, setShowMoreDropdown] = useState(false);
   const [isRefreshingHeaderLoc, setIsRefreshingHeaderLoc] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState("");
+  const [showHeaderActions, setShowHeaderActions] = useState(false);
 
   const updateUserLocation = async (newLocation: string) => {
     if (!currentUser) return;
@@ -554,78 +556,100 @@ export default function App() {
       </AnimatePresence>
 
       {/* HEADER NAVBAR */}
-      <header className="sticky top-0 z-40 bg-[#111622] border-b border-white/[0.05] shadow-xl px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
-        {/* Logo and App Title */}
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setIsDrawerOpen(true)}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-text-secondary hover:text-white transition-all cursor-pointer flex items-center justify-center border border-white/[0.06]"
-            title="Open navigation menu"
-          >
-            <Menu className="w-4 h-4 text-blue-500" />
-          </button>
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-base shadow-md">C</div>
-          <h1 className="text-lg font-black tracking-tight text-[#F1F5F9] cursor-pointer" onClick={() => setCurrentView("feed")}>
-            CivicPulse<span className="text-blue-500 underline decoration-2 underline-offset-4 ml-0.5">AI</span>
-          </h1>
-        </div>
-
-
-
-        {/* Action icons, Interactive Location Pill & User details */}
-        <div className="flex items-center gap-3.5">
-          {/* INTERACTIVE CLICK-TO-REFRESH LOCATION PILL */}
-          <button
-            onClick={handleRefreshHeaderLocation}
-            disabled={isRefreshingHeaderLoc}
-            className="hidden lg:flex items-center gap-3 bg-[#1F2937]/80 hover:bg-[#2D3748] border border-white/5 px-4 py-1.5 rounded-full transition-all cursor-pointer group disabled:opacity-50"
-            title="Locate Me / Refresh Coordinates (GPS/IP)"
-          >
-            <span className="text-[9px] text-[#94A3B8] font-black tracking-widest uppercase">My Ward</span>
-            <span className="text-xs font-semibold text-[#CBD5E1] flex items-center gap-1.5">
-              {currentUser.location}
-              <RotateCw className={`w-3.5 h-3.5 text-blue-400 group-hover:text-blue-300 transition-colors ${isRefreshingHeaderLoc ? "animate-spin" : ""}`} />
-            </span>
-            <div className={`w-2 h-2 rounded-full ${isRefreshingHeaderLoc ? "bg-blue-400 animate-ping" : "bg-emerald-500 animate-pulse"}`}></div>
-          </button>
-
-          {currentUser.role === "citizen" && (
-            <div className="hidden sm:block text-xs font-black text-[#F59E0B] bg-[#F59E0B]/10 border border-[#F59E0B]/20 px-3 py-1.5 rounded-xl">
-              ⭐ {currentUser.civicScore} Pts
-            </div>
-          )}
-
-          {/* Report Issue Button */}
-          {currentUser.role === "citizen" && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-blue-600/25 transition-all cursor-pointer"
+      <header className="sticky top-0 z-40 bg-[#0B0F19]/95 backdrop-blur-md border-b border-slate-800/80 shadow-2xl px-4 md:px-8 py-3.5 flex flex-col gap-3.5 transition-all">
+        {/* Row 1: Logo, App Title & Search Bar next to it */}
+        <div className="flex flex-wrap items-center justify-between gap-4 w-full">
+          <div className="flex flex-wrap items-center gap-4">
+            <button 
+              onClick={() => setIsDrawerOpen(true)}
+              className="p-2 rounded-xl hover:bg-slate-800/60 text-slate-400 hover:text-white transition-all cursor-pointer flex items-center justify-center border border-slate-800"
+              title="Open navigation menu"
             >
-              <PlusCircle className="w-4 h-4" />
-              <span className="hidden md:inline">Report Issue</span>
-              <span className="inline md:hidden">Report</span>
+              <Menu className="w-4 h-4 text-blue-500" />
             </button>
-          )}
+            <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center font-black text-white text-base shadow-lg shadow-blue-600/20">C</div>
+            <h1 className="text-lg font-black tracking-tight text-white cursor-pointer select-none mr-2" onClick={() => setCurrentView("feed")}>
+              CivicPulse<span className="text-blue-500 underline decoration-2 underline-offset-4 ml-0.5">AI</span>
+            </h1>
 
-          {/* User Profile initials */}
-          <div className="flex items-center gap-2 text-xs text-[#CBD5E1]">
+            {/* Unique Search Bar placed next to / in front of the App Name */}
+            <div className="relative w-64 md:w-[420px] group">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <Search className="w-4 h-4 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+              </span>
+              <input
+                id="header-search-input"
+                type="text"
+                value={globalSearchQuery}
+                onChange={(e) => {
+                  setGlobalSearchQuery(e.target.value);
+                  if (currentView !== "feed") {
+                    setCurrentView("feed");
+                  }
+                }}
+                placeholder="Search report feed (e.g., potholes, safety)..."
+                className="w-full bg-slate-900 hover:bg-slate-900/80 border border-slate-800 focus:border-blue-500 rounded-2xl pl-10 pr-4 py-2.5 text-xs md:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 shadow-lg transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Quick Profile Initials on Right */}
+          <div className="flex items-center gap-3">
             <div 
               onClick={() => setCurrentView("profile")}
-              className="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center border border-white/10 text-white font-bold text-xs uppercase cursor-pointer transition-colors"
+              className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center border border-slate-700 text-white font-bold text-xs uppercase cursor-pointer transition-colors shadow-inner"
               title="Go to Profile Dashboard"
             >
               {currentUser.name ? currentUser.name.split(" ").map(n => n[0]).join("").slice(0, 2) : "US"}
             </div>
           </div>
+        </div>
 
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
-            title="Sign Out"
-            className="p-2 rounded-xl bg-bg-secondary border border-brand-primary/10 hover:border-brand-critical/30 text-text-muted hover:text-brand-critical transition-all cursor-pointer"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+        {/* Row 2: The second DIV placed below, arranged professionally and made to look good */}
+        <div className="flex flex-wrap items-center justify-between gap-3 w-full border-t border-slate-800/40 pt-3">
+          {/* Left status / brand indicator */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-md">Live Status</span>
+            <span className="text-xs text-emerald-400 flex items-center gap-1.5 font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              All systems operational
+            </span>
+          </div>
+
+          {/* Right actions */}
+          <div className="flex items-center gap-3.5">
+            {/* INTERACTIVE CLICK-TO-REFRESH LOCATION PILL */}
+            <button
+              onClick={handleRefreshHeaderLocation}
+              disabled={isRefreshingHeaderLoc}
+              className="flex items-center gap-3 bg-slate-900/80 hover:bg-slate-800 border border-slate-800 px-4 py-2 rounded-xl transition-all cursor-pointer group disabled:opacity-50 shadow-sm"
+              title="Locate Me / Refresh Coordinates (GPS/IP)"
+            >
+              <span className="text-[9px] text-[#94A3B8] font-black tracking-widest uppercase">My Ward</span>
+              <span className="text-xs font-semibold text-[#CBD5E1] flex items-center gap-1.5">
+                {currentUser.location}
+                <RotateCw className={`w-3.5 h-3.5 text-blue-400 group-hover:text-blue-300 transition-colors ${isRefreshingHeaderLoc ? "animate-spin" : ""}`} />
+              </span>
+              <div className={`w-2 h-2 rounded-full ${isRefreshingHeaderLoc ? "bg-blue-400 animate-ping" : "bg-emerald-500 animate-pulse"}`}></div>
+            </button>
+
+            {currentUser.role === "citizen" && (
+              <div className="text-xs font-black text-[#F59E0B] bg-[#F59E0B]/10 border border-[#F59E0B]/20 px-3.5 py-2 rounded-xl shadow-inner flex items-center gap-1.5">
+                <span>⭐</span>
+                <span>{currentUser.civicScore} Pts</span>
+              </div>
+            )}
+
+            {currentUser.role === "citizen" && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20 hover:shadow-blue-600/35 transition-all cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Report Issue</span>
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -670,6 +694,8 @@ export default function App() {
                   onLike={handleLike}
                   onSaveIssue={handleSaveIssue}
                   onAddPeerEvidence={handleAddPeerEvidence}
+                  searchQuery={globalSearchQuery}
+                  setSearchQuery={setGlobalSearchQuery}
                 />
               )}
 

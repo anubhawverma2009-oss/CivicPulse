@@ -16,6 +16,8 @@ interface IssueFeedProps {
   onLike: (issueId: string) => void;
   onSaveIssue: (issueId: string) => void;
   onAddPeerEvidence: (issueId: string, description: string, proofImg?: string) => void;
+  searchQuery?: string;
+  setSearchQuery?: (val: string) => void;
 }
 
 export default function IssueFeed({
@@ -27,11 +29,16 @@ export default function IssueFeed({
   onAddResolution,
   onLike,
   onSaveIssue,
-  onAddPeerEvidence
+  onAddPeerEvidence,
+  searchQuery: externalSearchQuery,
+  setSearchQuery: externalSetSearchQuery
 }: IssueFeedProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [localSearchQuery, setLocalSearchQuery] = useState("");
+
+  const activeSearchQuery = externalSearchQuery !== undefined ? externalSearchQuery : localSearchQuery;
+  const activeSetSearchQuery = externalSetSearchQuery !== undefined ? externalSetSearchQuery : setLocalSearchQuery;
 
   // Filter issues
   const filteredIssues = issues.filter(issue => {
@@ -39,29 +46,18 @@ export default function IssueFeed({
     const matchesStatus = selectedStatus === "all" || 
       (selectedStatus === "active" && issue.status !== "resolved") ||
       (selectedStatus === "resolved" && issue.status === "resolved");
-    const matchesSearch = issue.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      issue.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      issue.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = issue.title.toLowerCase().includes(activeSearchQuery.toLowerCase()) || 
+      issue.description.toLowerCase().includes(activeSearchQuery.toLowerCase()) ||
+      issue.category.toLowerCase().includes(activeSearchQuery.toLowerCase());
     return matchesCategory && matchesStatus && matchesSearch;
   });
 
   return (
     <div className="space-y-6">
-      {/* Search & Filters Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Search Input */}
-        <div className="md:col-span-1">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search local reports (e.g. pothole)..."
-            className="w-full bg-bg-secondary border border-brand-primary/15 rounded-xl px-4 py-3 text-text-primary text-sm focus:outline-none focus:border-brand-primary"
-          />
-        </div>
-
+      {/* Filters Row */}
+      <div className="w-full">
         {/* Category Filters */}
-        <div className="flex gap-2 overflow-x-auto pb-1 md:col-span-2 scrollbar-thin">
+        <div className="flex gap-2 overflow-x-auto pb-1 w-full scrollbar-thin">
           <button
             onClick={() => setSelectedCategory("all")}
             className={`px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${
