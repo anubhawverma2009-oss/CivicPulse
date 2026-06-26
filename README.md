@@ -96,8 +96,8 @@ CivicPulse AI solves this through:
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/civicpulse-ai.git
-cd civicpulse-ai
+git clone https://github.com/anubhawverma2009-oss/CivicPulse.git
+cd CivicPulse
 
 # Install dependencies
 npm install
