@@ -9,7 +9,7 @@
 ![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript)
 
-[Live Demo](#) • [Report Issue](#) • [GitHub Repository](#)
+[🚀 Live Demo](https://civicpulse-ai-81317196678.asia-southeast1.run.app) • [🐞 Report Issue](https://github.com/anubhawverma2009-oss/CivicPulse/issues) • [📂 GitHub Repository](https://github.com/anubhawverma2009-oss/CivicPulse)
 
 </div>
 
