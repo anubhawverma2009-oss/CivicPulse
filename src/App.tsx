@@ -12,9 +12,11 @@ import { INITIAL_ISSUES } from "./lib/data";
 import { CivicAuth, CivicDatabase } from "./firebase/config";
 import { 
   Building, LogOut, Sparkles, MessageSquare, Trophy, User, PlusCircle, 
-  MapPin, HelpCircle, Bell, Volume2, ShieldCheck, CheckCircle, Compass, Gift
+  MapPin, HelpCircle, Bell, Volume2, ShieldCheck, CheckCircle, Compass, Gift,
+  MoreHorizontal, RotateCw, Check, ChevronDown, Menu, X
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { findClosestLocation, detectLocationByIP, detectLocationByGPS } from "./utils/location";
 
 export default function App() {
   // Authentication & State
@@ -27,6 +29,53 @@ export default function App() {
   const [currentView, setCurrentView] = useState<"feed" | "leaderboard" | "chatbot" | "profile" | "map" | "rewards">("feed");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [showMoreDropdown, setShowMoreDropdown] = useState(false);
+  const [isRefreshingHeaderLoc, setIsRefreshingHeaderLoc] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const updateUserLocation = async (newLocation: string) => {
+    if (!currentUser) return;
+    const updatedUser = { ...currentUser, location: newLocation };
+    setCurrentUser(updatedUser);
+    localStorage.setItem("civicpulse_firebase_current", JSON.stringify(updatedUser));
+    
+    try {
+      await CivicAuth.updateProfile(currentUser.uid, { location: newLocation });
+      showToast(`📍 Relocated in real-time to: ${newLocation}`);
+    } catch (e) {
+      console.warn("Could not sync locality to DB:", e);
+      showToast(`📍 Location updated: ${newLocation}`);
+    }
+  };
+
+  const handleRefreshHeaderLocation = async () => {
+    if (!currentUser) return;
+    setIsRefreshingHeaderLoc(true);
+    try {
+      // 1. Try real-time GPS coords
+      const gpsLoc = await detectLocationByGPS(3500);
+      if (gpsLoc) {
+        const closest = findClosestLocation(gpsLoc.lat, gpsLoc.lng);
+        await updateUserLocation(closest);
+        return;
+      }
+
+      // 2. Secondary fast IP lookup
+      const ipLoc = await detectLocationByIP();
+      if (ipLoc) {
+        const closest = findClosestLocation(ipLoc.lat, ipLoc.lng);
+        await updateUserLocation(closest);
+        return;
+      }
+
+      showToast(`Re-synchronization offline. Current Pin: ${currentUser.location}`);
+    } catch (err) {
+      console.warn("Header locate-me recheck error:", err);
+      showToast(`Detection failed. Current Pin: ${currentUser.location}`);
+    } finally {
+      setIsRefreshingHeaderLoc(false);
+    }
+  };
 
   // Synchronize database state with real-time listeners and seed database if empty
   useEffect(() => {
@@ -306,47 +355,267 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col justify-between">
+    <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col justify-between relative">
+      {/* LEFT SLIDING DRAWER MENU (ChatGPT/Google Workspace Style) */}
+      <AnimatePresence>
+        {isDrawerOpen && (
+          <>
+            {/* Dark blur backdrop overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDrawerOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 cursor-pointer"
+            />
+
+            {/* Slide-out Left Drawer */}
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 w-80 bg-[#1E293B] border-r border-white/10 shadow-2xl z-50 flex flex-col justify-between"
+            >
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Drawer Header */}
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-sm shadow-md">C</div>
+                    <span className="font-black text-[#F1F5F9] tracking-tight text-base">
+                      CivicPulse<span className="text-blue-500">AI</span>
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setIsDrawerOpen(false)}
+                    className="p-1.5 rounded-lg hover:bg-white/10 text-text-muted hover:text-white transition-colors cursor-pointer"
+                    title="Close menu"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* User Context Info Card */}
+                <div className="bg-[#111827]/50 rounded-xl p-3.5 border border-white/5 space-y-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-full bg-blue-600/20 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-xs uppercase">
+                      {currentUser.name ? currentUser.name.split(" ").map(n => n[0]).join("").slice(0, 2) : "US"}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-[#F1F5F9] line-clamp-1">{currentUser.name}</h4>
+                      <p className="text-[10px] text-text-muted uppercase font-mono tracking-wider">{currentUser.role}</p>
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-[#94A3B8] flex items-center gap-1.5 bg-white/5 px-2.5 py-1.5 rounded-lg">
+                    <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                    <span className="line-clamp-1">{currentUser.location}</span>
+                  </div>
+                </div>
+
+                {/* Main Navigation Menu */}
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-black tracking-widest text-text-muted uppercase px-2 mb-2">
+                    Core Dashboard Pages
+                  </p>
+
+                  <button
+                    onClick={() => {
+                      setCurrentView("feed");
+                      setIsDrawerOpen(false);
+                    }}
+                    className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                      currentView === "feed"
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                        : "text-[#94A3B8] hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <MessageSquare className="w-4 h-4" />
+                      <span>Community Feed</span>
+                    </div>
+                    {currentView === "feed" && <Check className="w-3.5 h-3.5 shrink-0 animate-pulse" />}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setCurrentView("map");
+                      setIsDrawerOpen(false);
+                    }}
+                    className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                      currentView === "map"
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                        : "text-[#94A3B8] hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Compass className="w-4 h-4 text-brand-success" />
+                      <span>Plus Google Map Impact</span>
+                    </div>
+                    {currentView === "map" && <Check className="w-3.5 h-3.5 shrink-0" />}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setCurrentView("rewards");
+                      setIsDrawerOpen(false);
+                    }}
+                    className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                      currentView === "rewards"
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                        : "text-[#94A3B8] hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Gift className="w-4 h-4 text-brand-warning shrink-0" />
+                      <span>Coins Reward Store</span>
+                    </div>
+                    {currentView === "rewards" && <Check className="w-3.5 h-3.5 shrink-0" />}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setCurrentView("leaderboard");
+                      setIsDrawerOpen(false);
+                    }}
+                    className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                      currentView === "leaderboard"
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                        : "text-[#94A3B8] hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Trophy className="w-4 h-4 text-[#F59E0B]" />
+                      <span>Priority Leaderboard</span>
+                    </div>
+                    {currentView === "leaderboard" && <Check className="w-3.5 h-3.5 shrink-0" />}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setCurrentView("chatbot");
+                      setIsDrawerOpen(false);
+                    }}
+                    className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                      currentView === "chatbot"
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                        : "text-[#94A3B8] hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Sparkles className="w-4 h-4 text-brand-warning" />
+                      <span>DrishtiBot AI Assistant</span>
+                    </div>
+                    {currentView === "chatbot" && <Check className="w-3.5 h-3.5 shrink-0" />}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setCurrentView("profile");
+                      setIsDrawerOpen(false);
+                    }}
+                    className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                      currentView === "profile"
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                        : "text-[#94A3B8] hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <User className="w-4 h-4 text-emerald-400" />
+                      <span>Profile Dashboard</span>
+                    </div>
+                    {currentView === "profile" && <Check className="w-3.5 h-3.5 shrink-0" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Drawer Footer controls */}
+              <div className="p-6 border-t border-white/5 bg-[#111827]/40 space-y-4">
+                {currentUser.role === "citizen" && (
+                  <div className="text-xs font-bold text-[#F59E0B] bg-[#F59E0B]/10 border border-[#F59E0B]/20 p-3 rounded-xl flex items-center justify-between">
+                    <span>🏆 Total Civic Score:</span>
+                    <span>{currentUser.civicScore} Pts</span>
+                  </div>
+                )}
+                
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setIsDrawerOpen(false);
+                  }}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out of Cockpit
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* HEADER NAVBAR */}
-      <header className="sticky top-0 z-40 bg-[#151A23] border-b border-[#3B82F615] shadow-lg px-4 md:px-8 py-3.5 flex items-center justify-between">
+      <header className="sticky top-0 z-40 bg-[#111622] border-b border-white/[0.05] shadow-xl px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
+        {/* Logo and App Title */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-base">C</div>
-          <h1 className="text-lg font-bold tracking-tight text-[#F1F5F9]">
+          <button 
+            onClick={() => setIsDrawerOpen(true)}
+            className="p-1.5 rounded-lg hover:bg-white/10 text-text-secondary hover:text-white transition-all cursor-pointer flex items-center justify-center border border-white/[0.06]"
+            title="Open navigation menu"
+          >
+            <Menu className="w-4 h-4 text-blue-500" />
+          </button>
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-base shadow-md">C</div>
+          <h1 className="text-lg font-black tracking-tight text-[#F1F5F9] cursor-pointer" onClick={() => setCurrentView("feed")}>
             CivicPulse<span className="text-blue-500 underline decoration-2 underline-offset-4 ml-0.5">AI</span>
           </h1>
         </div>
 
-        {/* Location pill */}
-        <div className="hidden md:flex items-center gap-4 bg-[#1F2937] px-4 py-1.5 rounded-full border border-white/5">
-          <span className="text-[10px] text-[#94A3B8] font-bold tracking-wider">LOCATION</span>
-          <span className="text-xs font-medium text-[#CBD5E1]">{currentUser.location}</span>
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-        </div>
 
-        {/* Action icons & User details */}
-        <div className="flex items-center gap-4">
+
+        {/* Action icons, Interactive Location Pill & User details */}
+        <div className="flex items-center gap-3.5">
+          {/* INTERACTIVE CLICK-TO-REFRESH LOCATION PILL */}
+          <button
+            onClick={handleRefreshHeaderLocation}
+            disabled={isRefreshingHeaderLoc}
+            className="hidden lg:flex items-center gap-3 bg-[#1F2937]/80 hover:bg-[#2D3748] border border-white/5 px-4 py-1.5 rounded-full transition-all cursor-pointer group disabled:opacity-50"
+            title="Locate Me / Refresh Coordinates (GPS/IP)"
+          >
+            <span className="text-[9px] text-[#94A3B8] font-black tracking-widest uppercase">My Ward</span>
+            <span className="text-xs font-semibold text-[#CBD5E1] flex items-center gap-1.5">
+              {currentUser.location}
+              <RotateCw className={`w-3.5 h-3.5 text-blue-400 group-hover:text-blue-300 transition-colors ${isRefreshingHeaderLoc ? "animate-spin" : ""}`} />
+            </span>
+            <div className={`w-2 h-2 rounded-full ${isRefreshingHeaderLoc ? "bg-blue-400 animate-ping" : "bg-emerald-500 animate-pulse"}`}></div>
+          </button>
+
           {currentUser.role === "citizen" && (
-            <div className="hidden sm:block text-xs font-bold text-[#F59E0B] bg-[#F59E0B]/10 border border-[#F59E0B]/20 px-3 py-1.5 rounded-xl">
+            <div className="hidden sm:block text-xs font-black text-[#F59E0B] bg-[#F59E0B]/10 border border-[#F59E0B]/20 px-3 py-1.5 rounded-xl">
               ⭐ {currentUser.civicScore} Pts
             </div>
           )}
 
-          {/* New Issue Button */}
+          {/* Report Issue Button */}
           {currentUser.role === "citizen" && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-blue-600/15 transition-all cursor-pointer"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-blue-600/25 transition-all cursor-pointer"
             >
               <PlusCircle className="w-4 h-4" />
-              Report Issue
+              <span className="hidden md:inline">Report Issue</span>
+              <span className="inline md:hidden">Report</span>
             </button>
           )}
 
+          {/* User Profile initials */}
           <div className="flex items-center gap-2 text-xs text-[#CBD5E1]">
-            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center border border-white/10 text-white font-bold text-xs uppercase">
+            <div 
+              onClick={() => setCurrentView("profile")}
+              className="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center border border-white/10 text-white font-bold text-xs uppercase cursor-pointer transition-colors"
+              title="Go to Profile Dashboard"
+            >
               {currentUser.name ? currentUser.name.split(" ").map(n => n[0]).join("").slice(0, 2) : "US"}
             </div>
-            <span className="hidden sm:inline font-medium text-text-secondary">{currentUser.name}</span>
           </div>
 
           {/* Logout */}
@@ -360,107 +629,28 @@ export default function App() {
         </div>
       </header>
 
-      {/* DUAL LAYER LAYOUT CONTAINER */}
-      <div className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-8 py-8 flex flex-col md:flex-row gap-8">
+      {/* FULL WIDTH LAYOUT CONTAINER */}
+      <div className="flex-1 max-w-5xl w-full mx-auto px-4 md:px-8 py-8 space-y-6">
         
-        {/* SIDEBAR NAVIGATION CONTROL */}
-        <aside className="w-full md:w-64 shrink-0 space-y-3">
-          <div className="glass-panel p-4 rounded-2xl space-y-1">
-            <p className="text-[9px] font-black tracking-widest text-text-muted uppercase px-3 mb-2">
-              Citizen Cockpit
-            </p>
-
-            <button
-              onClick={() => setCurrentView("feed")}
-              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-                currentView === "feed"
-                  ? "bg-brand-primary text-white shadow-md"
-                  : "text-text-secondary hover:bg-bg-secondary hover:text-white"
-              }`}
-            >
-              <MessageSquare className="w-4 h-4" />
-              Community Feed
-            </button>
-
-            <button
-              onClick={() => setCurrentView("map")}
-              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-                currentView === "map"
-                  ? "bg-brand-primary text-white shadow-md"
-                  : "text-text-secondary hover:bg-bg-secondary hover:text-white"
-              }`}
-            >
-              <Compass className="w-4 h-4 text-brand-success animate-spin-slow" />
-              Pulse GeoMap & Impact
-            </button>
-
-            <button
-              onClick={() => setCurrentView("rewards")}
-              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-                currentView === "rewards"
-                  ? "bg-brand-primary text-white shadow-md"
-                  : "text-text-secondary hover:bg-bg-secondary hover:text-white"
-              }`}
-            >
-              <Gift className="w-4 h-4 text-brand-warning animate-bounce" />
-              Coins Reward Store
-            </button>
-
-            <button
-              onClick={() => setCurrentView("leaderboard")}
-              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-                currentView === "leaderboard"
-                  ? "bg-brand-primary text-white shadow-md"
-                  : "text-text-secondary hover:bg-bg-secondary hover:text-white"
-              }`}
-            >
-              <Trophy className="w-4 h-4" />
-              Priority Leaderboard
-            </button>
-
-            <button
-              onClick={() => setCurrentView("chatbot")}
-              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-                currentView === "chatbot"
-                  ? "bg-brand-primary text-white shadow-md"
-                  : "text-text-secondary hover:bg-bg-secondary hover:text-white"
-              }`}
-            >
-              <Sparkles className="w-4 h-4 text-brand-warning animate-pulse" />
-              DrishtiBot AI
-            </button>
-
-            <button
-              onClick={() => setCurrentView("profile")}
-              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 cursor-pointer ${
-                currentView === "profile"
-                  ? "bg-brand-primary text-white shadow-md"
-                  : "text-text-secondary hover:bg-bg-secondary hover:text-white"
-              }`}
-            >
-              <User className="w-4 h-4" />
-              Profile Dashboard
-            </button>
-          </div>
-
-          {/* Quick Authority Notification Box */}
-          {currentUser.role === "authority" && (
-            <div className="bg-brand-warning/10 border border-brand-warning/20 p-4 rounded-2xl text-xs space-y-2">
-              <span className="font-bold text-brand-warning uppercase tracking-wider block">
-                🏛 Authority Corner
+        {/* Quick Authority Notification Box */}
+        {currentUser.role === "authority" && (
+          <div className="bg-[#F59E0B]/5 border border-[#F59E0B]/15 p-4 rounded-2xl text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-md">
+            <div className="space-y-1">
+              <span className="font-bold text-[#F59E0B] uppercase tracking-wider flex items-center gap-1.5">
+                🏛 Authority Corner — Active Ward Dashboard
               </span>
               <p className="text-text-secondary">
-                You are registered as <strong>{currentUser.designation}</strong> under <strong>{currentUser.department}</strong>.
+                Registered as <strong>{currentUser.designation}</strong> under <strong>{currentUser.department}</strong>.
               </p>
-              <div className="text-[10px] text-text-muted">
-                Please check outstanding cases assigned to your department. Publish a fix report to request citizen consensus closure.
-              </div>
             </div>
-          )}
-        </aside>
+            <div className="text-[10px] text-text-muted max-w-md sm:text-right">
+              Verify outstanding community reports. Publish a resolved report with work proof to trigger citizen consensus polling.
+            </div>
+          </div>
+        )}
 
         {/* MAIN VIEWPORT */}
-        <main className="flex-1 min-w-0">
+        <main className="w-full">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentView}

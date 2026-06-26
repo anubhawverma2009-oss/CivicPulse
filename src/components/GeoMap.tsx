@@ -4,7 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { IssueReport, UserProfile } from "../types";
 import { detectLocationByIP, detectLocationByGPS } from "../utils/location";
-import { MapPin, Users, Info } from "lucide-react";
+import { MapPin, Users, Info, Locate, RotateCw, Plus, Navigation } from "lucide-react";
 
 interface GeoMapProps {
   issues: IssueReport[];
@@ -36,6 +36,38 @@ export default function GeoMap({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [locationSource, setLocationSource] = useState<"GPS" | "IP" | "DEFAULT">("DEFAULT");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const refreshLocation = async () => {
+    setIsRefreshing(true);
+    setError(null);
+    try {
+      // 1. Prioritize precise GPS coordinates
+      const gpsLoc = await detectLocationByGPS(4000);
+      if (gpsLoc) {
+        setUserLocation([gpsLoc.lat, gpsLoc.lng]);
+        setLocationSource("GPS");
+        setIsRefreshing(false);
+        return;
+      }
+
+      // 2. Secondary fallback to IP
+      const ipLoc = await detectLocationByIP();
+      if (ipLoc) {
+        setUserLocation([ipLoc.lat, ipLoc.lng]);
+        setLocationSource("IP");
+        setIsRefreshing(false);
+        return;
+      }
+
+      setError("Could not detect live device signal. Re-centered on Varanasi.");
+    } catch (err) {
+      console.warn("Manual location detection failed:", err);
+      setError("An error occurred during location detection.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Immediate detection of coordinates on mount (No API Keys, fully free!)
   useEffect(() => {
@@ -166,11 +198,23 @@ export default function GeoMap({
           </span>
         </div>
         
-        {userLocation && (
-          <span className="font-mono text-[10px] text-text-muted">
-            {userLocation[0].toFixed(5)}, {userLocation[1].toFixed(5)}
-          </span>
-        )}
+        <div className="flex items-center gap-2.5">
+          {userLocation && (
+            <span className="font-mono text-[10px] text-text-muted">
+              {userLocation[0].toFixed(5)}, {userLocation[1].toFixed(5)}
+            </span>
+          )}
+
+          <button
+            onClick={refreshLocation}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-white transition-all text-[10px] font-bold cursor-pointer disabled:opacity-50"
+            title="Force refresh coordinates in real-time"
+          >
+            <RotateCw className={`w-3 h-3 ${isRefreshing ? "animate-spin" : ""}`} />
+            {isRefreshing ? "Locating..." : "Refresh GPS"}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -182,6 +226,30 @@ export default function GeoMap({
 
       {/* MAP VIEWPORT CARD */}
       <div className="relative glass-panel rounded-2xl overflow-hidden border border-brand-primary/10 shadow-xl" style={{ height: "480px" }}>
+        
+        {/* FLOATING GOOGLE MAPS STYLE PLUS-LOCATE BUTTON */}
+        <div className="absolute right-4 bottom-6 z-[400]">
+          <button
+            onClick={refreshLocation}
+            disabled={isRefreshing}
+            className="w-12 h-12 bg-white dark:bg-[#1E293B] text-slate-800 dark:text-white rounded-full flex items-center justify-center shadow-2xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer group hover:scale-110 active:scale-95 relative"
+            title="Real-Time Google Maps Pin Refresh"
+          >
+            {isRefreshing ? (
+              <RotateCw className="w-5 h-5 text-blue-500 animate-spin" />
+            ) : (
+              <div className="relative w-8 h-8 flex items-center justify-center">
+                <Plus className="w-4 h-4 text-blue-500 absolute z-10 font-black" />
+                <Locate className="w-7 h-7 text-slate-400 group-hover:text-blue-500 transition-colors animate-pulse" />
+              </div>
+            )}
+            
+            {isRefreshing && (
+              <span className="absolute inset-0 rounded-full bg-blue-500/15 animate-ping"></span>
+            )}
+          </button>
+        </div>
+
         <MapContainer
           center={initialCenter}
           zoom={13}
