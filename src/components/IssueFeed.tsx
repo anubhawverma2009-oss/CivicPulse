@@ -123,10 +123,10 @@ export default function IssueFeed({
       </div>
 
       {/* 2-COLUMN LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* LEFT COLUMN: Community Feed (2/3 width) */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* LEFT COLUMN: Community Feed */}
+        <div className="lg:col-span-7 xl:col-span-7 space-y-6">
           <AnimatePresence mode="popLayout">
             {filteredIssues.length === 0 ? (
               <motion.div
@@ -160,8 +160,8 @@ export default function IssueFeed({
           </AnimatePresence>
         </div>
 
-        {/* RIGHT COLUMN: Chatbot & Insights Sidebar (1/3 width, STICKY) */}
-        <div className="lg:col-span-1 lg:sticky lg:top-24 space-y-4">
+        {/* RIGHT COLUMN: Chatbot & Insights Sidebar (STICKY) */}
+        <div className="lg:col-span-5 xl:col-span-5 lg:sticky lg:top-24 space-y-4 w-full">
           <DrishtiBot currentUser={currentUser} issues={issues} />
         </div>
       </div>

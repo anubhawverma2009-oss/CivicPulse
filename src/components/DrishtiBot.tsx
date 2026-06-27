@@ -126,47 +126,47 @@ export default function DrishtiBot({ currentUser, issues }: DrishtiBotProps) {
   };
 
   return (
-    <div className="glass-panel p-4 rounded-2xl flex flex-col h-[440px] justify-between border border-brand-primary/10 shadow-xl relative overflow-hidden bg-bg-secondary/70">
+    <div className="glass-panel p-5 rounded-2xl flex flex-col h-[520px] md:h-[580px] lg:h-[620px] justify-between border border-brand-primary/20 shadow-2xl relative overflow-hidden bg-bg-secondary/80 w-full transition-all duration-300">
       {/* Bot Chat Header */}
-      <div className="flex items-center justify-between border-b border-brand-primary/10 pb-3">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-brand-primary/10 rounded-xl text-brand-primary shrink-0">
-            <Bot className="w-5 h-5" />
+      <div className="flex items-center justify-between border-b border-brand-primary/15 pb-3.5">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-gradient-to-br from-[#3B82F6]/20 to-[#1E40AF]/20 rounded-xl text-brand-primary shrink-0 shadow-[0_2px_10px_rgba(59,130,246,0.15)]">
+            <Bot className="w-5.5 h-5.5" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-bold font-display text-text-primary flex items-center gap-1">
+            <h3 className="text-sm md:text-base font-bold font-display text-text-primary flex items-center gap-1.5">
               DrishtiBot Civic AI
-              <Sparkles className="w-3 h-3 text-brand-warning animate-pulse shrink-0" />
+              <Sparkles className="w-3.5 h-3.5 text-brand-warning animate-pulse shrink-0" />
             </h3>
-            <p className="text-[9px] text-text-muted truncate">Civic assistant for {currentUser.location}</p>
+            <p className="text-[10px] md:text-xs text-text-muted truncate">Civic assistant for {currentUser.location}</p>
           </div>
         </div>
 
         <button
           onClick={handleResetChat}
           title="Clear Chat"
-          className="p-1.5 hover:bg-bg-secondary rounded-lg text-text-muted hover:text-white transition-colors cursor-pointer"
+          className="p-2 hover:bg-bg-secondary rounded-xl text-text-muted hover:text-white transition-colors cursor-pointer"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
+          <RefreshCw className="w-4 h-4" />
         </button>
       </div>
 
       {/* Chat Thread */}
-      <div className="flex-1 overflow-y-auto my-3 space-y-3 pr-1 scrollbar-thin">
+      <div className="flex-1 overflow-y-auto my-4 space-y-4 pr-1.5 scrollbar-thin">
         {messages.map(msg => (
           <div
             key={msg.id}
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed font-sans ${
+              className={`max-w-[82%] rounded-2xl px-4 py-3 text-xs md:text-sm leading-relaxed font-sans shadow-sm ${
                 msg.role === "user"
-                  ? "bg-brand-primary text-white rounded-br-none"
-                  : "bg-bg-secondary/90 border border-brand-primary/5 text-text-secondary rounded-bl-none"
+                  ? "bg-gradient-to-r from-brand-primary to-blue-600 text-white rounded-br-none"
+                  : "bg-bg-secondary border border-brand-primary/10 text-text-secondary rounded-bl-none"
               }`}
             >
               <p className="whitespace-pre-line">{msg.content}</p>
-              <span className="block text-[8px] opacity-60 text-right mt-1">
+              <span className="block text-[9px] opacity-65 text-right mt-1.5">
                 {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
@@ -175,9 +175,9 @@ export default function DrishtiBot({ currentUser, issues }: DrishtiBotProps) {
 
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-bg-secondary/90 border border-brand-primary/5 rounded-2xl rounded-bl-none px-3.5 py-2.5 text-xs text-text-muted flex items-center gap-2">
-              <Bot className="w-4 h-4 animate-bounce text-brand-primary" />
-              <span className="text-[11px]">DrishtiBot is typing...</span>
+            <div className="bg-bg-secondary border border-brand-primary/10 rounded-2xl rounded-bl-none px-4 py-3 text-xs text-text-muted flex items-center gap-2.5 shadow-sm">
+              <Bot className="w-4.5 h-4.5 animate-bounce text-brand-primary" />
+              <span className="text-[11px] md:text-xs">DrishtiBot is typing...</span>
             </div>
           </div>
         )}
@@ -185,7 +185,7 @@ export default function DrishtiBot({ currentUser, issues }: DrishtiBotProps) {
       </div>
 
       {/* Suggested Quick Inputs */}
-      <div className="flex gap-1.5 overflow-x-auto pb-2 text-[10px] scrollbar-thin shrink-0">
+      <div className="flex gap-2 overflow-x-auto pb-2.5 text-[10px] md:text-xs scrollbar-thin shrink-0">
         {[
           "Active potholes?",
           "How to earn badges?",
@@ -195,7 +195,7 @@ export default function DrishtiBot({ currentUser, issues }: DrishtiBotProps) {
           <button
             key={suggestion}
             onClick={() => setInputText(suggestion)}
-            className="px-2 py-1 bg-bg-secondary/60 hover:bg-bg-secondary rounded-lg text-text-secondary hover:text-white border border-brand-primary/5 cursor-pointer whitespace-nowrap transition-colors"
+            className="px-3 py-1.5 bg-bg-secondary hover:bg-slate-800 rounded-full text-text-secondary hover:text-white border border-brand-primary/10 cursor-pointer whitespace-nowrap transition-all duration-200 shadow-sm"
           >
             {suggestion}
           </button>
@@ -209,14 +209,14 @@ export default function DrishtiBot({ currentUser, issues }: DrishtiBotProps) {
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           placeholder="Ask about potholes, coins, or badges..."
-          className="flex-1 bg-bg-secondary border border-brand-primary/10 rounded-xl px-3.5 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-primary"
+          className="flex-1 bg-bg-secondary/90 border border-brand-primary/15 rounded-xl px-4 py-2.5 text-xs md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all shadow-inner"
         />
         <button
           type="submit"
           disabled={!inputText.trim() || loading}
-          className="bg-brand-primary hover:bg-brand-primary-dark text-white px-3.5 rounded-xl cursor-pointer disabled:opacity-50 transition-colors flex items-center justify-center"
+          className="bg-gradient-to-r from-brand-primary to-blue-600 hover:from-blue-600 hover:to-brand-primary-dark text-white px-4.5 rounded-xl cursor-pointer disabled:opacity-50 transition-all duration-200 flex items-center justify-center shadow-md active:scale-95"
         >
-          <Send className="w-3.5 h-3.5" />
+          <Send className="w-4 h-4" />
         </button>
       </form>
     </div>

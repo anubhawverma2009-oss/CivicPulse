@@ -53,8 +53,14 @@ export default function UserProfile({ user, issues, onTriggerFix }: UserProfileP
       {/* Profile Header Block */}
       <div className="flex flex-col md:flex-row items-center gap-6 pb-6 border-b border-brand-primary/10">
         <div className="relative">
-          <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-brand-primary p-1 bg-bg-secondary">
-            <img src={user.photoURL} alt={user.name} className="w-full h-full object-cover rounded-full" />
+          <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-brand-primary p-1 bg-bg-secondary flex items-center justify-center">
+            {user.photoURL ? (
+              <img src={user.photoURL} referrerPolicy="no-referrer" alt={user.name} className="w-full h-full object-cover rounded-full" />
+            ) : (
+              <span className="text-white font-extrabold text-2xl uppercase select-none">
+                {user.name ? user.name.split(" ").map(n => n[0]).join("").slice(0, 2) : "US"}
+              </span>
+            )}
           </div>
           <span className="absolute bottom-0 right-0 bg-brand-primary text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow">
             {user.role.toUpperCase()}

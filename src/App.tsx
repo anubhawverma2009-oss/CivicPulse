@@ -33,7 +33,19 @@ export default function App() {
   const [isRefreshingHeaderLoc, setIsRefreshingHeaderLoc] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showHeaderActions, setShowHeaderActions] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const updateUserLocation = async (newLocation: string) => {
     if (!currentUser) return;
@@ -357,29 +369,19 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col justify-between relative">
-      {/* LEFT SLIDING DRAWER MENU (ChatGPT/Google Workspace Style) */}
-      <AnimatePresence>
+    <div className="min-h-screen bg-bg-primary text-text-primary flex flex-row w-full relative overflow-hidden">
+      {/* LEFT SIDEBAR MENU (ChatGPT/Google Workspace Style) */}
+      <AnimatePresence initial={false}>
         {isDrawerOpen && (
-          <>
-            {/* Dark blur backdrop overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsDrawerOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 cursor-pointer"
-            />
-
-            {/* Slide-out Left Drawer */}
-            <motion.div
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-80 bg-[#1E293B] border-r border-white/10 shadow-2xl z-50 flex flex-col justify-between"
-            >
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <motion.div
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: isMobile ? 220 : 300, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="shrink-0 bg-[#1E293B] border-r border-white/10 h-screen sticky top-0 z-50 overflow-hidden flex flex-col justify-between"
+          >
+            <div style={{ width: isMobile ? 220 : 300 }} className="h-full flex flex-col justify-between">
+              <div className="flex-1 overflow-y-auto p-5 space-y-6">
                 {/* Drawer Header */}
                 <div className="flex items-center justify-between border-b border-white/5 pb-4">
                   <div className="flex items-center gap-2.5">
@@ -388,13 +390,15 @@ export default function App() {
                       CivicPulse<span className="text-blue-500">AI</span>
                     </span>
                   </div>
-                  <button
-                    onClick={() => setIsDrawerOpen(false)}
-                    className="p-1.5 rounded-lg hover:bg-white/10 text-text-muted hover:text-white transition-colors cursor-pointer"
-                    title="Close menu"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setIsDrawerOpen(false)}
+                      className="p-1.5 rounded-lg hover:bg-white/10 text-[#94A3B8] hover:text-white transition-colors cursor-pointer"
+                      title="Close menu"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* User Context Info Card */}
@@ -423,7 +427,6 @@ export default function App() {
                   <button
                     onClick={() => {
                       setCurrentView("feed");
-                      setIsDrawerOpen(false);
                     }}
                     className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
                       currentView === "feed"
@@ -441,7 +444,6 @@ export default function App() {
                   <button
                     onClick={() => {
                       setCurrentView("map");
-                      setIsDrawerOpen(false);
                     }}
                     className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
                       currentView === "map"
@@ -459,7 +461,6 @@ export default function App() {
                   <button
                     onClick={() => {
                       setCurrentView("rewards");
-                      setIsDrawerOpen(false);
                     }}
                     className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
                       currentView === "rewards"
@@ -477,7 +478,6 @@ export default function App() {
                   <button
                     onClick={() => {
                       setCurrentView("leaderboard");
-                      setIsDrawerOpen(false);
                     }}
                     className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
                       currentView === "leaderboard"
@@ -495,7 +495,6 @@ export default function App() {
                   <button
                     onClick={() => {
                       setCurrentView("chatbot");
-                      setIsDrawerOpen(false);
                     }}
                     className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
                       currentView === "chatbot"
@@ -513,7 +512,6 @@ export default function App() {
                   <button
                     onClick={() => {
                       setCurrentView("profile");
-                      setIsDrawerOpen(false);
                     }}
                     className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
                       currentView === "profile"
@@ -550,35 +548,30 @@ export default function App() {
                   Sign Out of Cockpit
                 </button>
               </div>
-            </motion.div>
-          </>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* HEADER NAVBAR */}
-      <header className="sticky top-0 z-40 bg-[#0B0F19]/95 backdrop-blur-md border-b border-slate-800/80 shadow-2xl px-4 md:px-8 py-3.5 flex flex-col gap-3.5 transition-all">
-        {/* Row 1: Logo, App Title & Search Bar next to it */}
-        <div className="flex flex-wrap items-center justify-between gap-4 w-full">
-          <div className="flex flex-wrap items-center gap-4">
-            <button 
-              onClick={() => setIsDrawerOpen(true)}
-              className="p-2 rounded-xl hover:bg-slate-800/60 text-slate-400 hover:text-white transition-all cursor-pointer flex items-center justify-center border border-slate-800"
-              title="Open navigation menu"
-            >
-              <Menu className="w-4 h-4 text-blue-500" />
-            </button>
-            <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center font-black text-white text-base shadow-lg shadow-blue-600/20">C</div>
-            <h1 className="text-lg font-black tracking-tight text-white cursor-pointer select-none mr-2" onClick={() => setCurrentView("feed")}>
-              CivicPulse<span className="text-blue-500 underline decoration-2 underline-offset-4 ml-0.5">AI</span>
-            </h1>
+      {/* RIGHT SIDE CONTAINER (Header + Content viewport) */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
 
-            {/* Unique Search Bar placed next to / in front of the App Name */}
-            <div className="relative w-64 md:w-[420px] group">
+      {/* MOBILE SEARCH OVERLAY (Full Viewport) */}
+      <AnimatePresence>
+        {isMobileSearchOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="fixed inset-x-0 top-0 bg-[#0B0E14] z-[2000] p-4 flex items-center gap-3 border-b border-[#3B82F6]/30 shadow-2xl"
+          >
+            <div className="relative flex-1">
               <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <Search className="w-4 h-4 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
+                <Search className="w-4 h-4 text-[#3B82F6]" />
               </span>
               <input
-                id="header-search-input"
+                autoFocus
                 type="text"
                 value={globalSearchQuery}
                 onChange={(e) => {
@@ -587,68 +580,292 @@ export default function App() {
                     setCurrentView("feed");
                   }
                 }}
-                placeholder="Search report feed (e.g., potholes, safety)..."
-                className="w-full bg-slate-900 hover:bg-slate-900/80 border border-slate-800 focus:border-blue-500 rounded-2xl pl-10 pr-4 py-2.5 text-xs md:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 shadow-lg transition-all"
+                placeholder="Search report feed..."
+                className="w-full bg-[#151A23] border border-[#3B82F6]/50 rounded-xl pl-10 pr-10 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/30 shadow-inner"
               />
+              {globalSearchQuery && (
+                <button
+                  onClick={() => setGlobalSearchQuery("")}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 hover:scale-110 transition-transform p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
-          </div>
-
-          {/* Quick Profile Initials on Right */}
-          <div className="flex items-center gap-3">
-            <div 
-              onClick={() => setCurrentView("profile")}
-              className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center border border-slate-700 text-white font-bold text-xs uppercase cursor-pointer transition-colors shadow-inner"
-              title="Go to Profile Dashboard"
-            >
-              {currentUser.name ? currentUser.name.split(" ").map(n => n[0]).join("").slice(0, 2) : "US"}
-            </div>
-          </div>
-        </div>
-
-        {/* Row 2: The second DIV placed below, arranged professionally and made to look good */}
-        <div className="flex flex-wrap items-center justify-between gap-3 w-full border-t border-slate-800/40 pt-3">
-          {/* Left status / brand indicator */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-md">Live Status</span>
-            <span className="text-xs text-emerald-400 flex items-center gap-1.5 font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              All systems operational
-            </span>
-          </div>
-
-          {/* Right actions */}
-          <div className="flex items-center gap-3.5">
-            {/* INTERACTIVE CLICK-TO-REFRESH LOCATION PILL */}
             <button
-              onClick={handleRefreshHeaderLocation}
-              disabled={isRefreshingHeaderLoc}
-              className="flex items-center gap-3 bg-slate-900/80 hover:bg-slate-800 border border-slate-800 px-4 py-2 rounded-xl transition-all cursor-pointer group disabled:opacity-50 shadow-sm"
-              title="Locate Me / Refresh Coordinates (GPS/IP)"
+              onClick={() => setIsMobileSearchOpen(false)}
+              className="px-3.5 py-2 text-xs font-bold text-slate-400 hover:text-white bg-[#151A23] border border-slate-800/80 rounded-xl transition-all"
             >
-              <span className="text-[9px] text-[#94A3B8] font-black tracking-widest uppercase">My Ward</span>
-              <span className="text-xs font-semibold text-[#CBD5E1] flex items-center gap-1.5">
-                {currentUser.location}
-                <RotateCw className={`w-3.5 h-3.5 text-blue-400 group-hover:text-blue-300 transition-colors ${isRefreshingHeaderLoc ? "animate-spin" : ""}`} />
-              </span>
-              <div className={`w-2 h-2 rounded-full ${isRefreshingHeaderLoc ? "bg-blue-400 animate-ping" : "bg-emerald-500 animate-pulse"}`}></div>
+              Cancel
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* HEADER NAVBAR */}
+      <header className="sticky top-0 z-[1000] bg-[#0B0E14]/92 backdrop-blur-[12px] shadow-[0_8px_24px_rgba(0,0,0,0.3)] min-h-16 md:min-h-[76px] lg:min-h-[80px] transition-all duration-300 w-full select-none flex items-center py-2 md:py-3">
+        {/* Hardware-accelerated Bottom Shimmer Gradient Line */}
+        <motion.div 
+          className="absolute bottom-0 left-0 right-0 h-[1px] pointer-events-none"
+          style={{
+            background: "linear-gradient(90deg, #3B82F6 0%, rgba(59, 130, 246, 0.3) 50%, transparent 100%)",
+            backgroundSize: "200% 100%",
+          }}
+          animate={{
+            backgroundPosition: ["0% 0%", "100% 0%"]
+          }}
+          transition={{
+            repeat: Infinity,
+            duration: 3,
+            ease: "linear"
+          }}
+        />
+
+        <div className="max-w-[95%] mx-auto px-4 md:px-6 lg:px-8 w-full flex items-center justify-between gap-4 py-1.5 md:py-2">
+          {/* LEFT SECTION: BRANDING + REPOSITIONED SEARCH & LOCATION */}
+          <div className="flex items-center gap-3 md:gap-4 lg:gap-6 flex-1 min-w-0">
+            {/* Branding with Menu Button */}
+            <motion.div 
+              className="flex items-center gap-2 md:gap-2.5 lg:gap-3 shrink-0"
+              whileHover="hover"
+              whileTap="tap"
+            >
+              {/* Logo Element (Now replaced with three-line Menu icon button) */}
+              <motion.button 
+                onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+                className="w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 rounded-xl bg-gradient-to-br from-[#3B82F6] to-[#1E40AF] flex items-center justify-center text-white shadow-[0_4px_12px_rgba(59,130,246,0.3)] border border-blue-400/20 cursor-pointer"
+                animate={{
+                  scale: [1, 1.08, 1],
+                  boxShadow: [
+                    "0 4px 12px rgba(59,130,246,0.3)",
+                    "0 4px 22px rgba(59,130,246,0.6)",
+                    "0 4px 12px rgba(59,130,246,0.3)"
+                  ]
+                }}
+                transition={{
+                  scale: {
+                    repeat: Infinity,
+                    duration: 2,
+                    ease: "easeInOut"
+                  },
+                  boxShadow: {
+                    repeat: Infinity,
+                    duration: 2,
+                    ease: "easeInOut"
+                  }
+                }}
+                whileHover={{ 
+                  scale: 1.12, 
+                  boxShadow: "0 8px 24px rgba(59, 130, 246, 0.45)" 
+                }}
+                whileTap={{ scale: 0.95 }}
+                title="Open navigation menu"
+              >
+                <Menu className="w-5 h-5 md:w-5.5 md:h-5.5 lg:w-6 lg:h-6 text-white stroke-[2.5]" />
+              </motion.button>
+
+              {/* App Name */}
+              <div 
+                onClick={() => setCurrentView("feed")}
+                className="flex items-center gap-1 font-display tracking-tight text-slate-100 text-sm md:text-base lg:text-[20px] leading-none cursor-pointer"
+              >
+                <span className="hidden sm:inline-block font-semibold group-hover:text-white transition-colors duration-300">
+                  CivicPulse
+                </span>
+                <span className="font-regular text-[#3B82F6]">
+                  AI
+                </span>
+              </div>
+            </motion.div>
+
+            {/* SEARCH BAR (repositioned next to Civic Pulse AI) */}
+            <div className="hidden md:flex items-center shrink-0">
+              <div className={`w-[200px] lg:w-[320px] xl:w-[420px] h-10 lg:h-11 relative flex items-center rounded-xl border transition-all duration-300 ${
+                isSearchFocused 
+                  ? "bg-[#151A23]/95 border-[#3B82F6] shadow-[0_0_20px_rgba(59,130,246,0.25)] scale-[1.01]" 
+                  : "bg-[#151A23]/70 border-[#3B82F6]/25 hover:border-[#3B82F6]/50"
+              }`}>
+                <span className="absolute left-3.5 flex items-center pointer-events-none">
+                  <Search className={`w-[18px] h-[18px] transition-colors duration-300 ${isSearchFocused ? "text-[#3B82F6]" : "text-slate-400"}`} />
+                </span>
+                <input
+                  id="header-search-input"
+                  type="text"
+                  value={globalSearchQuery}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setIsSearchFocused(false)}
+                  onChange={(e) => {
+                    setGlobalSearchQuery(e.target.value);
+                    if (currentView !== "feed") {
+                      setCurrentView("feed");
+                    }
+                  }}
+                  placeholder="Search report feed (e.g., potholes, safety)..."
+                  className="w-full h-full bg-transparent pl-10 pr-10 text-xs lg:text-sm text-slate-100 placeholder:text-slate-500/80 focus:outline-none"
+                />
+                {globalSearchQuery && (
+                  <button
+                    onClick={() => setGlobalSearchQuery("")}
+                    className="absolute right-3.5 text-slate-400 hover:text-red-500 transition-colors p-0.5 rounded-full hover:bg-white/5"
+                    title="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* LOCATION CHIP (repositioned next to Search display) */}
+            <div className="hidden sm:flex items-center shrink-0">
+              <motion.button
+                onClick={handleRefreshHeaderLocation}
+                disabled={isRefreshingHeaderLoc}
+                className="flex flex-col items-start bg-[#151A23]/70 hover:bg-[#151A23]/95 border border-[#3B82F6]/30 hover:border-[#3B82F6]/60 px-4 py-1.5 lg:py-2 rounded-xl transition-all cursor-pointer group disabled:opacity-50 shadow-sm w-[180px] lg:w-[220px]"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                title="Locate Me / Refresh Coordinates (GPS/IP)"
+              >
+                <div className="flex items-center gap-1 w-full justify-between">
+                  <span className="text-[9px] uppercase font-bold text-[#3B82F6] tracking-wider">
+                    LOCATION
+                  </span>
+                  <RotateCw className={`w-3 h-3 text-blue-400 group-hover:text-blue-300 transition-colors shrink-0 ${isRefreshingHeaderLoc ? "animate-spin" : ""}`} />
+                </div>
+                <div className="flex items-center gap-1 mt-0.5 w-full min-w-0">
+                  <MapPin className="w-3.5 h-3.5 text-[#3B82F6] shrink-0" />
+                  <span className="text-[10px] lg:text-xs font-semibold text-[#CBD5E1] truncate w-full text-left">
+                    MY WARD: {currentUser?.location || "Kanpur, Swaroop Nagar"}
+                  </span>
+                </div>
+              </motion.button>
+            </div>
+          </div>
+
+          {/* RIGHT SECTION: LOCATION + USER PROFILE + ACTIONS */}
+          <div className="flex items-center justify-end gap-2.5 sm:gap-3 shrink-0">
+            {/* Mobile Search Standalone Icon */}
+            <button
+              onClick={() => setIsMobileSearchOpen(true)}
+              className="md:hidden w-9 h-9 rounded-xl border border-slate-800 bg-slate-900/80 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+              title="Search"
+            >
+              <Search className="w-[18px] h-[18px]" />
             </button>
 
-            {currentUser.role === "citizen" && (
-              <div className="text-xs font-black text-[#F59E0B] bg-[#F59E0B]/10 border border-[#F59E0B]/20 px-3.5 py-2 rounded-xl shadow-inner flex items-center gap-1.5">
-                <span>⭐</span>
-                <span>{currentUser.civicScore} Pts</span>
-              </div>
+
+            {/* REPORT ISSUE BUTTON */}
+            {currentUser?.role === "citizen" && (
+              <motion.button
+                onClick={() => setShowCreateModal(true)}
+                className="hidden sm:flex bg-gradient-to-br from-[#3B82F6] to-[#1E40AF] hover:brightness-110 active:scale-95 text-white px-4 md:px-5 h-10 rounded-xl text-xs md:text-sm font-semibold items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(59,130,246,0.3)] hover:shadow-[0_8px_24px_rgba(59,130,246,0.4)] transition-all cursor-pointer min-w-[110px] md:min-w-[130px]"
+                whileHover={{ y: -2, scale: 1.02 }}
+                whileTap={{ y: 0, scale: 0.98 }}
+              >
+                <PlusCircle className="w-4 h-4 shrink-0" />
+                <span className="hidden md:inline">Report Issue</span>
+                <span className="md:hidden inline">Report</span>
+              </motion.button>
             )}
 
-            {currentUser.role === "citizen" && (
+            {/* Symmetrical Vertical Separator (Only on Desktop/Tablet) */}
+            <div className="hidden sm:block w-[1px] h-8 bg-slate-800 shrink-0" />
+
+            {/* USER PROFILE SECTION */}
+            <div className="relative shrink-0 flex items-center gap-2">
               <button
-                onClick={() => setShowCreateModal(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20 hover:shadow-blue-600/35 transition-all cursor-pointer"
+                onClick={() => setShowMoreDropdown(!showMoreDropdown)}
+                className="flex items-center gap-2 p-0.5 rounded-xl hover:bg-white/5 transition-all group"
+                title="Profile Options"
               >
-                <PlusCircle className="w-4 h-4" />
-                <span>Report Issue</span>
+                <div className="w-9 h-9 md:w-10 md:h-10 rounded-full border-2 border-blue-500/40 group-hover:border-[#3B82F6] bg-slate-800 flex items-center justify-center overflow-hidden transition-all shadow-[0_2px_8px_rgba(59,130,246,0.2)] group-hover:scale-105">
+                  {currentUser.photoURL ? (
+                    <img 
+                      src={currentUser.photoURL} 
+                      referrerPolicy="no-referrer" 
+                      alt={currentUser.name} 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    <span className="text-white font-bold text-xs uppercase font-display">
+                      {currentUser.name ? currentUser.name.split(" ").map(n => n[0]).join("").slice(0, 2) : "US"}
+                    </span>
+                  )}
+                </div>
+
+                {/* Optional notification pulse */}
+                {notification && (
+                  <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-red-500 border-2 border-[#0B0E14] rounded-full animate-ping" />
+                )}
+
+                {/* User Info (Desktop only) */}
+                <div className="hidden lg:flex flex-col items-start text-left max-w-[110px]">
+                  <span className="text-xs font-semibold text-slate-100 truncate w-full group-hover:text-white transition-colors duration-150">
+                    {currentUser.name ? currentUser.name.split(" ")[0] : "User"}
+                  </span>
+                  <span className="text-[10px] text-slate-400 capitalize leading-none mt-0.5">
+                    {currentUser.role}
+                  </span>
+                </div>
+
+                <ChevronDown className="hidden lg:block w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200 transition-colors" />
               </button>
-            )}
+
+              {/* Profile Dropdown Menu */}
+              <AnimatePresence>
+                {showMoreDropdown && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setShowMoreDropdown(false)} 
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 5 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 top-full w-48 bg-[#111827] border border-slate-800 rounded-xl shadow-2xl p-1.5 z-50 flex flex-col gap-1"
+                    >
+                      <div className="px-2.5 py-2 border-b border-slate-800/60 mb-1">
+                        <p className="text-[10px] font-black tracking-wider text-slate-500 uppercase">Signed In As</p>
+                        <p className="text-xs font-bold text-slate-200 truncate mt-0.5">{currentUser.name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{currentUser.email}</p>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setCurrentView("profile");
+                          setShowMoreDropdown(false);
+                        }}
+                        className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-white transition-all flex items-center gap-2 cursor-pointer"
+                      >
+                        <User className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>View Profile</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setShowMoreDropdown(false);
+                        }}
+                        className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-all flex items-center gap-2 cursor-pointer border-t border-slate-800/40 mt-1"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Sign Out</span>
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Hamburger Mobile Menu Toggle Button (Visible on mobile screens) */}
+            <button
+              onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+              className="sm:hidden w-9 h-9 rounded-xl border border-slate-800 bg-slate-900/80 flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer"
+              title="Open Navigation Menu"
+            >
+              <Menu className="w-5 h-5 stroke-[2.5]" />
+            </button>
           </div>
         </div>
       </header>
@@ -731,7 +948,9 @@ export default function App() {
               )}
 
               {currentView === "chatbot" && (
-                <DrishtiBot currentUser={currentUser} issues={issues} />
+                <div className="max-w-3xl mx-auto w-full">
+                  <DrishtiBot currentUser={currentUser} issues={issues} />
+                </div>
               )}
 
               {currentView === "profile" && (
@@ -744,6 +963,7 @@ export default function App() {
             </motion.div>
           </AnimatePresence>
         </main>
+      </div>
       </div>
 
       {/* FLOATING ACTION CREATE COMPLAINT MODAL */}
