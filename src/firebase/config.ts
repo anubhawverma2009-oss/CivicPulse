@@ -380,6 +380,24 @@ export const CivicAuth = {
     }
   },
 
+  getUserById: async (uid: string): Promise<UserProfile | null> => {
+    if (isFirebaseConfigured && realDb) {
+      try {
+        const docSnap = await getDoc(doc(realDb, "users", uid));
+        if (docSnap.exists()) {
+          return docSnap.data() as UserProfile;
+        }
+        return null;
+      } catch (err) {
+        console.error("Error getting user by ID:", err);
+        return null;
+      }
+    } else {
+      const users = getLocalUsers();
+      return users[uid] || null;
+    }
+  },
+
   signInWithGoogle: async (role: UserRole = "citizen"): Promise<UserProfile> => {
     if (isFirebaseConfigured && realAuth) {
       try {

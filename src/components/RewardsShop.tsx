@@ -1,11 +1,17 @@
 import React, { useState } from "react";
-import { UserProfile } from "../types";
-import { Award, Star, Gift, Ticket, TreePine, Flame, Sparkles, CheckCircle2, ShoppingBag } from "lucide-react";
+import { IssueReport, UserProfile } from "../types";
+import { Award, Gift, Ticket, TreePine, Flame, Sparkles, CheckCircle2, ShoppingBag, Trophy, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import Leaderboard from "./Leaderboard";
 
 interface RewardsShopProps {
+  issues: IssueReport[];
   currentUser: UserProfile;
   onRedeemReward: (rewardId: string, cost: number) => Promise<void>;
+  onSaveIssue: (issueId: string) => void;
+  onLike: (issueId: string) => void;
+  onSelectIssue: (issueId: string) => void;
+  onNavigate: (view: string) => void;
 }
 
 interface RewardItem {
@@ -27,10 +33,11 @@ const REWARDS: RewardItem[] = [
   { id: "tax_rebate", name: "5% Property Tax Discount", category: "TAX", description: "Direct discount rebate code applied on municipal property tax filing.", cost: 500, icon: "🏠", color: "from-purple-500/10 to-purple-600/5 text-purple-400 border-purple-500/20", couponCode: "VM-TAX-REBATE-5" }
 ];
 
-export default function RewardsShop({ currentUser, onRedeemReward }: RewardsShopProps) {
+export default function RewardsShop({ currentUser, issues, onRedeemReward, onSaveIssue, onLike, onSelectIssue, onNavigate }: RewardsShopProps) {
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [successReward, setSuccessReward] = useState<RewardItem | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"rewards" | "shop" | "leaderboard">("rewards");
 
   const currentCoins = currentUser.civicCoins !== undefined ? currentUser.civicCoins : currentUser.civicScore;
 
@@ -69,145 +76,202 @@ export default function RewardsShop({ currentUser, onRedeemReward }: RewardsShop
       {/* Background radial highlight */}
       <div className="absolute top-0 right-0 w-80 h-80 bg-brand-warning/5 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Header Block */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-6 border-b border-brand-primary/10">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-brand-warning/15 rounded-xl text-brand-warning">
-            <Gift className="w-6 h-6 animate-pulse" />
-          </div>
-          <div>
-            <h2 className="text-xl font-black font-display text-text-primary">Civic Coins Reward Shop</h2>
-            <p className="text-xs text-text-muted">Exchange your peer validation and report points for real commercial & eco perks</p>
-          </div>
-        </div>
+      {/* Tabs */}
+      <div className="flex border-b border-brand-primary/10 mb-4 gap-2">
+        {[
+          { id: "rewards", label: "Civic Coins & Rewards" },
+          { id: "shop", label: "Shop" },
+          { id: "leaderboard", label: "Leaderboard" }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`px-6 py-3 text-sm font-black uppercase tracking-wider transition-all ${
+              activeTab === tab.id 
+                ? "text-brand-warning border-b-2 border-brand-warning" 
+                : "text-text-muted hover:text-text-primary"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        {/* Dynamic Balance Box */}
-        <div className="bg-brand-warning/10 border border-brand-warning/20 rounded-2xl p-4 flex items-center gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-black font-display text-brand-warning flex items-center justify-center gap-1">
-              <Star className="w-5 h-5 text-brand-warning animate-spin-slow inline" />
-              {currentCoins}
+      {activeTab === "rewards" && (
+        <div className="space-y-6">
+          {/* Header Block */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-6 border-b border-brand-primary/10">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-brand-warning/15 rounded-xl text-brand-warning">
+                <Gift className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black font-display text-text-primary">Civic Coins & Rewards</h2>
+                <p className="text-xs text-text-muted">Exchange your peer validation and report points for real commercial & eco perks</p>
+              </div>
             </div>
-            <div className="text-[9px] font-bold text-text-muted uppercase tracking-wider mt-0.5">My Civic Coins</div>
-          </div>
-          <div className="w-px h-10 bg-brand-primary/15" />
-          <div className="text-left text-xs leading-none">
-            <span className="text-[10px] text-text-muted block mb-1">CIVIC RANK:</span>
-            <span className="font-bold text-white flex items-center gap-1">
-              {rank.badge} {rank.title}
-            </span>
-          </div>
-        </div>
-      </div>
 
-      {/* Rank progress bar */}
-      <div className="bg-bg-secondary/40 border border-brand-primary/5 rounded-xl p-4 space-y-2">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-text-muted">Rank Milestone Progression</span>
-          <span className="font-semibold text-text-secondary">
-            {rank.current} / {rank.next === 9999 ? "Max" : `${rank.next} pts for next tier`}
-          </span>
-        </div>
-        <div className="w-full h-2 bg-bg-primary rounded-full overflow-hidden">
-          <div className="h-full bg-brand-warning rounded-full transition-all duration-500" style={{ width: `${rank.percent}%` }} />
-        </div>
-      </div>
+            {/* Dynamic Balance Box */}
+            <div className="bg-brand-warning/10 border border-brand-warning/20 rounded-2xl p-4 flex items-center gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-black font-display text-brand-warning flex items-center justify-center gap-1">
+                  {currentCoins}
+                </div>
+                <div className="text-[9px] font-bold text-text-muted uppercase tracking-wider mt-0.5">CPS Coins</div>
+              </div>
+              <div className="w-px h-10 bg-brand-primary/15" />
+              <div className="text-left text-xs leading-none">
+                <span className="text-[10px] text-text-muted block mb-1">CIVIC RANK:</span>
+                <span className="font-bold text-white flex items-center gap-1">
+                  {rank.badge} {rank.title}
+                </span>
+              </div>
+            </div>
+          </div>
 
-      {/* Notification error box */}
-      {errorText && (
-        <div className="bg-brand-danger/10 border border-brand-danger/20 p-3.5 rounded-xl text-xs text-brand-danger font-semibold">
-          ⚠️ {errorText}
+          {/* User Points Info (earned) */}
+          <div className="bg-bg-secondary/40 border border-brand-primary/5 rounded-xl p-4 space-y-2">
+            <h3 className="text-xs font-bold text-text-primary">Civic Points Earned</h3>
+            <p className="text-xs text-text-muted">You have earned points through reporting, peer validation, and community engagement.</p>
+          </div>
+
+          {/* Claimed vouchers ledger */}
+          {currentUser.redeemedRewards && currentUser.redeemedRewards.length > 0 && (
+            <div className="space-y-3 pt-4 border-t border-brand-primary/10">
+              <h3 className="text-xs font-black uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+                <ShoppingBag className="w-4 h-4 text-brand-primary" /> Active Redeemed Vouchers
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {currentUser.redeemedRewards.map(rewardId => {
+                  const details = REWARDS.find(r => r.id === rewardId);
+                  if (!details) return null;
+                  return (
+                    <div key={rewardId} className="bg-bg-secondary p-3 rounded-xl border border-brand-success/15 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">{details.icon}</span>
+                        <div>
+                          <div className="text-xs font-bold text-white">{details.name}</div>
+                          <div className="text-[9px] text-brand-success">Verified Active Voucher</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Grid of Reward Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {REWARDS.map(reward => {
-          const isRedeemed = currentUser.redeemedRewards?.includes(reward.id);
-          const hasEnough = currentCoins >= reward.cost;
-
-          return (
-            <div 
-              key={reward.id} 
-              className={`p-4 rounded-2xl border bg-bg-secondary/40 flex flex-col justify-between space-y-4 hover:bg-bg-secondary/65 transition-all relative overflow-hidden`}
-            >
-              {/* Card top details */}
-              <div className="space-y-2">
-                <div className="flex items-start justify-between">
-                  <span className="text-3xl">{reward.icon}</span>
-                  <span className="text-[9px] font-black tracking-wider text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded uppercase">
-                    {reward.category}
-                  </span>
+      {activeTab === "shop" && (
+        <div className="space-y-6">
+          <div className="bg-brand-warning/10 border border-brand-warning/20 rounded-2xl p-4 flex items-center justify-between gap-4">
+              <div>
+                <div className="text-2xl font-black font-display text-brand-warning flex items-center gap-1">
+                  {currentCoins}
                 </div>
-
-                <h3 className="text-sm font-bold text-text-primary leading-tight">{reward.name}</h3>
-                <p className="text-[10px] text-text-muted leading-relaxed">{reward.description}</p>
+                <div className="text-[9px] font-bold text-text-muted uppercase tracking-wider mt-0.5">CPS Coins</div>
               </div>
-
-              {/* Card actions / pricing */}
-              <div className="border-t border-brand-primary/5 pt-4 flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-black text-brand-warning">{reward.cost} coins</div>
-                  <div className="text-[8px] uppercase tracking-wider text-text-muted mt-0.5">Redeem Cost</div>
-                </div>
-
-                {isRedeemed ? (
-                  <button
-                    disabled
-                    className="px-3 py-1.5 bg-brand-success/10 border border-brand-success/20 text-brand-success text-xs font-bold rounded-lg flex items-center gap-1"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Claimed
-                  </button>
-                ) : (
-                  <button
-                    disabled={redeemingId === reward.id}
-                    onClick={() => handleRedeem(reward)}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      hasEnough 
-                        ? "bg-brand-warning hover:bg-brand-warning/90 text-bg-primary shadow" 
-                        : "bg-bg-primary text-text-muted border border-brand-primary/5 opacity-50"
-                    }`}
-                  >
-                    {redeemingId === reward.id ? "Confirming..." : "Redeem"}
-                  </button>
-                )}
+              <div className="text-right text-xs">
+                <span className="text-[10px] text-text-muted block mb-1">CIVIC RANK:</span>
+                <span className="font-bold text-white flex items-center gap-1">
+                  {rank.badge} {rank.title}
+                </span>
               </div>
-            </div>
-          );
-        })}
-      </div>
+          </div>
+          
+          {/* Grid of Reward Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {REWARDS.map(reward => {
+              const isRedeemed = currentUser.redeemedRewards?.includes(reward.id);
+              const hasEnough = currentCoins >= reward.cost;
 
-      {/* Claimed vouchers ledger */}
-      {currentUser.redeemedRewards && currentUser.redeemedRewards.length > 0 && (
-        <div className="space-y-3 pt-4 border-t border-brand-primary/10">
-          <h3 className="text-xs font-black uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
-            <ShoppingBag className="w-4 h-4 text-brand-primary" /> Active Redeemed Vouchers
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {currentUser.redeemedRewards.map(rewardId => {
-              const details = REWARDS.find(r => r.id === rewardId);
-              if (!details) return null;
               return (
-                <div key={rewardId} className="bg-bg-secondary p-3 rounded-xl border border-brand-success/15 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">{details.icon}</span>
-                    <div>
-                      <div className="text-xs font-bold text-white">{details.name}</div>
-                      <div className="text-[9px] text-brand-success">Verified Active Voucher</div>
+                <div 
+                  key={reward.id} 
+                  className={`p-4 rounded-2xl border bg-bg-secondary/40 flex flex-col justify-between space-y-4 hover:bg-bg-secondary/65 transition-all relative overflow-hidden`}
+                >
+                  {/* Card top details */}
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between">
+                      <span className="text-3xl">{reward.icon}</span>
+                      <span className="text-[9px] font-black tracking-wider text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded uppercase">
+                        {reward.category}
+                      </span>
                     </div>
+
+                    <h3 className="text-sm font-bold text-text-primary leading-tight">{reward.name}</h3>
+                    <p className="text-[10px] text-text-muted leading-relaxed">{reward.description}</p>
                   </div>
 
-                  {/* Coupon Barcode layout */}
-                  <div className="text-right">
-                    <div className="font-mono text-[9px] text-text-secondary bg-bg-primary px-2 py-1 rounded border border-brand-primary/10">
-                      {details.couponCode}
+                  {/* Card actions / pricing */}
+                  <div className="border-t border-brand-primary/5 pt-4 flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-black text-brand-warning">{reward.cost} coins</div>
+                      <div className="text-[8px] uppercase tracking-wider text-text-muted mt-0.5">Redeem Cost</div>
                     </div>
-                    <div className="text-[7px] text-text-muted mt-0.5">Show barcode to municipal clerk</div>
+
+                    {isRedeemed ? (
+                      <button
+                        disabled
+                        className="px-3 py-1.5 bg-brand-success/10 border border-brand-success/20 text-brand-success text-xs font-bold rounded-lg flex items-center gap-1"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Claimed
+                      </button>
+                    ) : (
+                      <button
+                        disabled={redeemingId === reward.id}
+                        onClick={() => handleRedeem(reward)}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          hasEnough 
+                            ? "bg-brand-warning hover:bg-brand-warning/90 text-bg-primary shadow" 
+                            : "bg-bg-primary text-text-muted border border-brand-primary/5 opacity-50"
+                        }`}
+                      >
+                        {redeemingId === reward.id ? "Confirming..." : "Redeem"}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "leaderboard" && (
+        <div className="space-y-6">
+          <div className="bg-bg-secondary/40 border border-brand-primary/10 rounded-2xl p-6">
+            <h3 className="text-sm font-black uppercase tracking-wider text-text-primary mb-6">User Status</h3>
+            
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-16 h-16 rounded-full bg-brand-primary/20 flex items-center justify-center text-2xl font-black text-brand-primary border border-brand-primary/20">
+                {currentUser.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">{currentUser.name}</h2>
+                <button
+                  onClick={() => onNavigate("profile")}
+                  className="text-xs text-brand-primary hover:underline"
+                >
+                  View Full Profile
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-bg-primary p-4 rounded-xl border border-brand-primary/5">
+                <div className="text-[10px] uppercase tracking-wider text-text-muted">Coins Earned</div>
+                <div className="text-2xl font-black text-brand-warning">{currentCoins} CPS</div>
+              </div>
+              <div className="bg-bg-primary p-4 rounded-xl border border-brand-primary/5">
+                <div className="text-[10px] uppercase tracking-wider text-text-muted">Priority Level</div>
+                <div className="text-xl font-bold text-white">
+                  {rank.title}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -261,3 +325,4 @@ export default function RewardsShop({ currentUser, onRedeemReward }: RewardsShop
     </div>
   );
 }
+

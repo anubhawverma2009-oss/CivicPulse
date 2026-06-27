@@ -32,8 +32,23 @@ export interface UserProfile {
   designation?: string;
   bio?: string;
   documentVerified?: boolean;
+  docType?: string;
+  customDocType?: string;
+  authorityProofType?: string;
+  customAuthorityProofType?: string;
+  docWardsRegion?: string;
+  customDocWardsRegion?: string;
+  docChangeCount?: number;
+  docChangeHistory?: Array<{
+    date: string;
+    reason: string;
+    previousDoc: string;
+    newDoc: string;
+  }>;
   money?: number; // Starting money/budget configuration
   onboardingComplete?: boolean;
+  username?: string;
+  usernameChangesCount?: number;
   
   // Gamification reward shop expansion
   civicCoins?: number;

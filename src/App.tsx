@@ -5,13 +5,14 @@ import IssueFeed from "./components/IssueFeed";
 import Leaderboard from "./components/Leaderboard";
 import DrishtiBot from "./components/DrishtiBot";
 import UserProfileView from "./components/UserProfile";
+import ProfileTabs from "./components/ProfileTabs";
 import CreateIssueModal from "./components/CreateIssueModal";
 import GeoMap from "./components/GeoMap";
 import RewardsShop from "./components/RewardsShop";
 import { INITIAL_ISSUES } from "./lib/data";
 import { CivicAuth, CivicDatabase } from "./firebase/config";
 import { 
-  Building, LogOut, Sparkles, MessageSquare, Trophy, User, PlusCircle, 
+  Building, LogOut, Sparkles, MessageSquare, AlertTriangle, User, PlusCircle, 
   MapPin, HelpCircle, Bell, Volume2, ShieldCheck, CheckCircle, Compass, Gift,
   MoreHorizontal, RotateCw, Check, ChevronDown, Menu, X, Search
 } from "lucide-react";
@@ -37,6 +38,47 @@ export default function App() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showHeaderActions, setShowHeaderActions] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Deep linking and shared profile states
+  const [sharedProfileId, setSharedProfileId] = useState<string | null>(null);
+  const [sharedProfile, setSharedProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const profileId = urlParams.get("profile");
+    if (profileId) {
+      setSharedProfileId(profileId);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentUser && sharedProfileId) {
+      CivicAuth.getUserById(sharedProfileId).then((prof) => {
+        if (prof) {
+          setSharedProfile(prof);
+          setCurrentView("profile");
+          showToast(`✨ Loaded shared profile: ${prof.name}`);
+        }
+      });
+    }
+  }, [currentUser, sharedProfileId]);
+
+  const handleUpdateUser = async (updatedUser: UserProfile) => {
+    if (currentUser && updatedUser.uid === currentUser.uid) {
+      setCurrentUser(updatedUser);
+      localStorage.setItem("civicpulse_firebase_current", JSON.stringify(updatedUser));
+    }
+    if (sharedProfile && updatedUser.uid === sharedProfile.uid) {
+      setSharedProfile(updatedUser);
+    }
+    try {
+      await CivicAuth.updateProfile(updatedUser.uid, updatedUser);
+      showToast("👤 Profile details updated and synchronized!");
+    } catch (e) {
+      console.warn("Could not sync profile update to DB:", e);
+      showToast("👤 Profile details updated!");
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -421,7 +463,7 @@ export default function App() {
                 {/* Main Navigation Menu */}
                 <div className="space-y-1.5">
                   <p className="text-[10px] font-black tracking-widest text-text-muted uppercase px-2 mb-2">
-                    Core Dashboard Pages
+                    Civic Dashboard
                   </p>
 
                   <button
@@ -443,6 +485,23 @@ export default function App() {
 
                   <button
                     onClick={() => {
+                      setCurrentView("leaderboard");
+                    }}
+                    className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                      currentView === "leaderboard"
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                        : "text-[#94A3B8] hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <AlertTriangle className="w-4 h-4 text-[#F59E0B]" />
+                      <span>Problem Priority Leaderboard</span>
+                    </div>
+                    {currentView === "leaderboard" && <Check className="w-3.5 h-3.5 shrink-0" />}
+                  </button>
+
+                  <button
+                    onClick={() => {
                       setCurrentView("map");
                     }}
                     className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
@@ -453,9 +512,26 @@ export default function App() {
                   >
                     <div className="flex items-center gap-3">
                       <Compass className="w-4 h-4 text-brand-success" />
-                      <span>Plus Google Map Impact</span>
+                      <span>Google Maps Impact</span>
                     </div>
                     {currentView === "map" && <Check className="w-3.5 h-3.5 shrink-0" />}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setCurrentView("chatbot");
+                    }}
+                    className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                      currentView === "chatbot"
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                        : "text-[#94A3B8] hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Sparkles className="w-4 h-4 text-brand-warning" />
+                      <span>Drishti AI Assistant</span>
+                    </div>
+                    {currentView === "chatbot" && <Check className="w-3.5 h-3.5 shrink-0" />}
                   </button>
 
                   <button
@@ -473,40 +549,6 @@ export default function App() {
                       <span>Coins Reward Store</span>
                     </div>
                     {currentView === "rewards" && <Check className="w-3.5 h-3.5 shrink-0" />}
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setCurrentView("leaderboard");
-                    }}
-                    className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
-                      currentView === "leaderboard"
-                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                        : "text-[#94A3B8] hover:bg-white/5 hover:text-white"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Trophy className="w-4 h-4 text-[#F59E0B]" />
-                      <span>Priority Leaderboard</span>
-                    </div>
-                    {currentView === "leaderboard" && <Check className="w-3.5 h-3.5 shrink-0" />}
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setCurrentView("chatbot");
-                    }}
-                    className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
-                      currentView === "chatbot"
-                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                        : "text-[#94A3B8] hover:bg-white/5 hover:text-white"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Sparkles className="w-4 h-4 text-brand-warning" />
-                      <span>DrishtiBot AI Assistant</span>
-                    </div>
-                    {currentView === "chatbot" && <Check className="w-3.5 h-3.5 shrink-0" />}
                   </button>
 
                   <button
@@ -933,8 +975,19 @@ export default function App() {
 
               {currentView === "rewards" && (
                 <RewardsShop
+                  issues={issues}
                   currentUser={currentUser}
                   onRedeemReward={handleRedeemReward}
+                  onSaveIssue={handleSaveIssue}
+                  onLike={handleLike}
+                  onSelectIssue={(issueId) => {
+                    setCurrentView("feed");
+                    setTimeout(() => {
+                      const el = document.getElementById(issueId);
+                      if (el) el.scrollIntoView({ behavior: "smooth" });
+                    }, 100);
+                  }}
+                  onNavigate={(view) => setCurrentView(view)}
                 />
               )}
 
@@ -944,6 +997,13 @@ export default function App() {
                   currentUser={currentUser}
                   onSaveIssue={handleSaveIssue}
                   onLike={handleLike}
+                  onSelectIssue={(issueId) => {
+                    setCurrentView("feed");
+                    setTimeout(() => {
+                      const el = document.getElementById(issueId);
+                      if (el) el.scrollIntoView({ behavior: "smooth" });
+                    }, 100);
+                  }}
                 />
               )}
 
@@ -954,11 +1014,30 @@ export default function App() {
               )}
 
               {currentView === "profile" && (
-                <UserProfileView
-                  user={currentUser}
-                  issues={issues}
-                  onTriggerFix={handleTriggerFix}
-                />
+                <>
+                  <UserProfileView
+                    user={sharedProfile || currentUser!}
+                    issues={issues}
+                    onTriggerFix={handleTriggerFix}
+                    onUpdateUser={handleUpdateUser}
+                    loggedInUser={currentUser}
+                    isViewingShared={!!sharedProfile}
+                    onBackToOwnProfile={() => setSharedProfile(null)}
+                    onVote={handleVote}
+                  />
+                  <ProfileTabs
+                    user={sharedProfile || currentUser!}
+                    issues={issues}
+                    currentUser={currentUser!}
+                    onVote={handleVote}
+                    onVoteResolution={handleVoteResolution}
+                    onAddComment={handleAddComment}
+                    onAddResolution={handleAddResolution}
+                    onLike={handleLike}
+                    onSaveIssue={handleSaveIssue}
+                    onAddPeerEvidence={handleAddPeerEvidence}
+                  />
+                </>
               )}
             </motion.div>
           </AnimatePresence>

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { IssueReport, UserProfile } from "../types";
-import { Trophy, Clock, Heart, Share2, Award, Calendar, ThumbsUp, Bookmark } from "lucide-react";
+import { AlertTriangle, Clock, Heart, Share2, Award, Calendar, ThumbsUp, Bookmark } from "lucide-react";
 import { CATEGORIES } from "../lib/data";
 
 interface LeaderboardProps {
@@ -8,9 +8,10 @@ interface LeaderboardProps {
   currentUser: UserProfile;
   onSaveIssue: (issueId: string) => void;
   onLike: (issueId: string) => void;
+  onSelectIssue: (issueId: string) => void;
 }
 
-export default function Leaderboard({ issues, currentUser, onSaveIssue, onLike }: LeaderboardProps) {
+export default function Leaderboard({ issues, currentUser, onSaveIssue, onLike, onSelectIssue }: LeaderboardProps) {
   const [filter, setFilter] = useState<"daily" | "weekly" | "monthly" | "resolved">("daily");
 
   const getFilteredLeaderboard = () => {
@@ -69,10 +70,10 @@ export default function Leaderboard({ issues, currentUser, onSaveIssue, onLike }
       {/* Header */}
       <div className="flex items-center gap-2 mb-6">
         <div className="p-2 bg-brand-warning/10 rounded-lg text-brand-warning">
-          <Trophy className="w-6 h-6 animate-pulse" />
+          <AlertTriangle className="w-6 h-6 animate-pulse" />
         </div>
         <div>
-          <h2 className="text-xl font-bold font-display text-text-primary">Civic Priority Leaderboard</h2>
+          <h2 className="text-xl font-bold font-display text-text-primary">Problem Priority Leaderboard</h2>
           <p className="text-xs text-text-muted">Real-time localized backlog ranking for city department interventions</p>
         </div>
       </div>
@@ -113,7 +114,8 @@ export default function Leaderboard({ issues, currentUser, onSaveIssue, onLike }
             return (
               <div
                 key={issue.id}
-                className="flex items-center gap-4 bg-bg-secondary/40 p-4 rounded-xl border border-brand-primary/5 hover:border-brand-primary/15 transition-all"
+                className="flex items-center gap-4 bg-bg-secondary/40 p-4 rounded-xl border border-brand-primary/5 hover:border-brand-primary/15 transition-all cursor-pointer"
+                onClick={() => onSelectIssue(issue.id)}
               >
                 {/* Rank Badge */}
                 <div className="w-8 text-center font-display font-black text-sm">
