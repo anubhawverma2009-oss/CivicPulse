@@ -1,29 +1,42 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Global Safety Net default-deny
-    match /{document=**} {
-      allow read, write: if false;
-    }
 
-    // Reusable, hardened global helpers
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // User profile rules
-    match /users/{userId} {
-      allow read: if true; // Publicly readable for leaderboard and checks
-      allow create, update: if isSignedIn() && (request.auth.uid == userId || userId == 'user-aravind' || userId == 'user-muni');
-      allow delete: if false;
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    // Civic issue reports rules
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get, list: if isSignedIn(); // Allow reading profile, maybe restrict to isOwner later
+      allow create: if isSignedIn() && request.auth.uid == userId && incoming().uid == request.auth.uid;
+      allow update: if isSignedIn() && request.auth.uid == userId && incoming().uid == request.auth.uid;
+    }
+
+    // Issues Collection
     match /issues/{issueId} {
-      allow read: if true;
-      allow create, update: if isSignedIn() || (issueId == 'issue-1' || issueId == 'issue-2' || issueId == 'issue-3' || issueId == 'issue-4');
-      allow delete: if isSignedIn();
+      allow list, get: if isSignedIn();
+      allow create: if isSignedIn() && incoming().authorId == request.auth.uid;
+      allow update: if isSignedIn() && existing().authorId == request.auth.uid;
+      allow delete: if false; // Disallow deletion for now
     }
   }
 }

@@ -27,7 +27,7 @@ export default function App() {
   });
 
   const [issues, setIssues] = useState<IssueReport[]>([]);
-  const [currentView, setCurrentView] = useState<"feed" | "leaderboard" | "chatbot" | "profile" | "map" | "rewards">("feed");
+  const [currentView, setCurrentView] = useState<"feed" | "leaderboard" | "chatbot" | "profile" | "map" | "rewards" | "report">("feed");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [showMoreDropdown, setShowMoreDropdown] = useState(false);
@@ -377,7 +377,7 @@ export default function App() {
       votedResolutionUserIds: {}
     });
 
-    setShowCreateModal(false);
+    setCurrentView("feed");
 
     // Award First Reporter Badge if appropriate and score updates
     if (currentUser.role === "citizen") {
@@ -798,7 +798,7 @@ export default function App() {
             {/* REPORT ISSUE BUTTON */}
             {currentUser?.role === "citizen" && (
               <motion.button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => setCurrentView("report")}
                 className="hidden sm:flex bg-gradient-to-br from-[#3B82F6] to-[#1E40AF] hover:brightness-110 active:scale-95 text-white px-4 md:px-5 h-10 rounded-xl text-xs md:text-sm font-semibold items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(59,130,246,0.3)] hover:shadow-[0_8px_24px_rgba(59,130,246,0.4)] transition-all cursor-pointer min-w-[110px] md:min-w-[130px]"
                 whileHover={{ y: -2, scale: 1.02 }}
                 whileTap={{ y: 0, scale: 0.98 }}
@@ -903,7 +903,7 @@ export default function App() {
             {/* Hamburger Mobile Menu Toggle Button (Visible on mobile screens) */}
             <button
               onClick={() => setIsDrawerOpen(!isDrawerOpen)}
-              className="sm:hidden w-9 h-9 rounded-xl border border-slate-800 bg-slate-900/80 flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer"
+              className="sm:hidden hidden w-9 h-9 rounded-xl border border-slate-800 bg-slate-900/80 flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer"
               title="Open Navigation Menu"
             >
               <Menu className="w-5 h-5 stroke-[2.5]" />
@@ -955,6 +955,14 @@ export default function App() {
                   onAddPeerEvidence={handleAddPeerEvidence}
                   searchQuery={globalSearchQuery}
                   setSearchQuery={setGlobalSearchQuery}
+                />
+              )}
+
+              {currentView === "report" && (
+                <CreateIssueModal
+                  currentUser={currentUser}
+                  onClose={() => setCurrentView("feed")}
+                  onSave={handleCreateIssue}
                 />
               )}
 

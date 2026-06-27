@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { UserProfile, IssueReport } from "../types";
-import { Send, Sparkles, RefreshCw, Bot } from "lucide-react";
+import { Send, Sparkles, RefreshCw, Bot, Mic } from "lucide-react";
 import { motion } from "motion/react";
 
 interface Message {
@@ -26,7 +26,58 @@ export default function DrishtiBot({ currentUser, issues }: DrishtiBotProps) {
   ]);
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInputText(prev => (prev ? `${prev} ${transcript}` : transcript));
+        setIsRecording(false);
+      };
+      
+      recognitionRef.current.onend = () => setIsRecording(false);
+      
+      recognitionRef.current.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        setIsRecording(false);
+      };
+    } else {
+      console.warn("Speech recognition not supported in this browser.");
+    }
+  }, []);
+
+  const toggleRecording = () => {
+    if (!recognitionRef.current) {
+      console.warn("Speech recognition not supported in this browser.");
+      return;
+    }
+    
+    if (isRecording) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsRecording(true);
+      } catch (err: any) {
+        if (err.name === 'DOMException' && err.message.includes('already started')) {
+          console.warn("Recognition already started, ignoring start request.");
+          setIsRecording(true);
+          return;
+        }
+        console.error("Speech recognition start error:", err);
+        setIsRecording(false);
+      }
+    }
+  };
 
   useEffect(() => {
     // Scroll to bottom on new message
@@ -204,6 +255,13 @@ export default function DrishtiBot({ currentUser, issues }: DrishtiBotProps) {
 
       {/* Message Input Form */}
       <form onSubmit={handleSendMessage} className="flex gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={toggleRecording}
+          className={`p-2.5 rounded-xl transition-all ${isRecording ? 'bg-red-500 text-white' : 'bg-bg-secondary text-text-primary hover:bg-slate-800 border border-brand-primary/15'}`}
+        >
+          <Mic className="w-5 h-5" />
+        </button>
         <input
           type="text"
           value={inputText}

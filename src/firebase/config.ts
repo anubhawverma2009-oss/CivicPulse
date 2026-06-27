@@ -10,6 +10,7 @@ import {
 } from "firebase/auth";
 import { 
   getFirestore, 
+  initializeFirestore,
   doc, 
   setDoc as fbSetDoc, 
   getDoc, 
@@ -87,7 +88,9 @@ if (isFirebaseConfigured) {
   try {
     app = getApps().length === 0 ? initializeApp(apiConfig) : getApp();
     realAuth = getAuth(app);
-    realDb = getFirestore(app, apiConfig.firestoreDatabaseId); /* CRITICAL: The app will break without this line */
+    realDb = initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+    }, apiConfig.firestoreDatabaseId); /* CRITICAL: The app will break without this line */
     console.log("🔥 Firebase successfully initialized in real-time Cloud production mode.");
   } catch (error) {
     console.error("Firebase initialization failed, falling back to Local Engine:", error);

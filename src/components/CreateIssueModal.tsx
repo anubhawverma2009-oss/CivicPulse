@@ -4,6 +4,7 @@ import { X, Upload, Sparkles, Sliders, AlertTriangle, ShieldCheck, HelpCircle } 
 import { motion } from "motion/react";
 import { CATEGORIES } from "../lib/data";
 import { detectLocationByIP, detectLocationByGPS } from "../utils/location";
+import Scanner from "./Scanner";
 
 interface CreateIssueModalProps {
   currentUser: UserProfile;
@@ -14,15 +15,18 @@ interface CreateIssueModalProps {
 export default function CreateIssueModal({ currentUser, onClose, onSave }: CreateIssueModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<IssueReport["category"]>("POTHOLE");
+  const [category, setCategory] = useState<string>("POTHOLE");
+  const [customCategoryName, setCustomCategoryName] = useState("");
   const [severity, setSeverity] = useState(5);
   const [tags, setTags] = useState("");
 
   // Image attachment states
   const [imageUrl, setImageUrl] = useState("");
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [generatingImage, setGeneratingImage] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Scanner states
+  const [scanScore, setScanScore] = useState<number | null>(null);
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
   // AI Analysis states
   const [analyzing, setAnalyzing] = useState(false);
@@ -42,30 +46,6 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
         setUploadingImage(false);
       };
       reader.readAsDataURL(file);
-    }
-  };
-
-  const handleGenerateAIImage = async () => {
-    if (!aiPrompt) {
-      alert("Please provide an AI generation prompt (e.g. 'pothole inside Varanasi')");
-      return;
-    }
-    setGeneratingImage(true);
-    try {
-      const response = await fetch("/api/gemini/generate-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: aiPrompt })
-      });
-      const data = await response.json();
-      if (data.imageUrl) {
-        setImageUrl(data.imageUrl);
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Failed to synthesize image. Try another prompt.");
-    } finally {
-      setGeneratingImage(false);
     }
   };
 
@@ -108,8 +88,17 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
         })
       });
       const data = await response.json();
-      
-      if (data.category) setCategory(data.category.toUpperCase().replace("_", " ") as any);
+      if (data.category) {
+        const catUpper = data.category.toUpperCase().replace("_", " ");
+        const isPredefined = CATEGORIES.some(c => c.name === catUpper);
+        if (isPredefined) {
+          setCategory(catUpper);
+          setCustomCategoryName("");
+        } else {
+          setCategory("CUSTOM");
+          setCustomCategoryName(catUpper);
+        }
+      }
       if (data.severity) setSeverity(data.severity);
       if (data.report) setDescription(data.report);
       if (data.hazards) setHazards(data.hazards);
@@ -154,13 +143,14 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
 
     const locationCoords = await captureLocation();
 
-    const generatedQuestion = pollQuestion || `Should local ward officers fix this ${category.toLowerCase()} immediately?`;
+    const finalCategory = category === "CUSTOM" ? (customCategoryName.trim().toUpperCase() || "CUSTOM") : category;
+    const generatedQuestion = pollQuestion || `Should local ward officers fix this ${finalCategory.toLowerCase()} immediately?`;
     const parsedTags = tags ? tags.split(",").map(t => t.trim().startsWith("#") ? t.trim() : `#${t.trim()}`) : ["#CivicPulse"];
 
     onSave({
       title,
       description,
-      category,
+      category: finalCategory,
       severity,
       location: currentUser.location,
       latitude: locationCoords.latitude,
@@ -174,22 +164,22 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
       isReal,
       aiConfidence,
       hazards,
-      status: "pending"
+      status: "pending",
     });
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-4 py-8 overflow-y-auto">
+    <div className="w-full bg-bg-primary">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="w-full max-w-2xl glass-panel rounded-2xl overflow-hidden relative"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 10 }}
+        className="max-w-3xl mx-auto glass-panel rounded-2xl overflow-hidden relative border border-brand-primary/10"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-brand-primary/10 px-6 py-4">
-          <h2 className="text-lg font-bold font-display text-text-primary flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-brand-primary animate-pulse" />
+          <h2 className="text-xl font-bold font-display text-text-primary flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-brand-primary animate-pulse" />
             File Hyperlocal Complaint
           </h2>
           <button
@@ -232,13 +222,27 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
               </label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value as any)}
+                onChange={(e) => setCategory(e.target.value)}
                 className="w-full bg-bg-secondary border border-brand-primary/10 rounded-lg px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-brand-primary"
               >
                 {CATEGORIES.map(cat => (
                   <option key={cat.id} value={cat.name}>{cat.icon} {cat.name}</option>
                 ))}
+                <option value="CUSTOM">➕ Other / Custom Category...</option>
               </select>
+
+              {category === "CUSTOM" && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    required
+                    value={customCategoryName}
+                    onChange={(e) => setCustomCategoryName(e.target.value)}
+                    placeholder="e.g. SEWER OVERFLOW, DANGEROUS TREE"
+                    className="w-full bg-bg-secondary border border-brand-primary/10 rounded-lg px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-primary uppercase"
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -267,73 +271,47 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
             />
           </div>
 
-          {/* Image Upload or AI Generation prompt */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
-                Upload Site Photograph
-              </label>
-              <label className="flex flex-col items-center justify-center border border-dashed border-brand-primary/30 rounded-lg py-5 bg-bg-secondary hover:bg-bg-secondary/80 cursor-pointer transition-colors relative overflow-hidden h-32">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                <Upload className="w-6 h-6 text-brand-primary mb-1" />
-                <span className="text-xs text-text-secondary font-semibold">
-                  {uploadingImage ? "Loading file..." : "Browse local files"}
-                </span>
-                <span className="text-[10px] text-text-muted mt-0.5">JPEG or PNG</span>
-              </label>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
-                Generate Mock Photo using Gemini
-              </label>
-              <div className="bg-bg-secondary border border-brand-primary/10 rounded-lg p-3 h-32 flex flex-col justify-between">
-                <textarea
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder="e.g. Deep asphalt road pothole, Varanasi public lane, high safety risk, realistic photo"
-                  className="w-full bg-transparent border-none text-[11px] text-text-primary focus:outline-none placeholder:text-text-muted h-14 resize-none"
-                />
-                <button
-                  type="button"
-                  disabled={generatingImage || !aiPrompt}
-                  onClick={handleGenerateAIImage}
-                  className="w-full py-1.5 bg-brand-primary/20 hover:bg-brand-primary/30 text-white font-bold text-xs rounded-md flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-brand-warning" />
-                  {generatingImage ? "Synthesizing Photo..." : "AI Generate Simulated Image"}
-                </button>
-              </div>
-            </div>
+          {/* Unified Scanner & Photograph Uploader Section */}
+          <div>
+            <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
+              Photograph Verification Scanner
+            </label>
+            <Scanner 
+              imageUrl={imageUrl} 
+              setImageUrl={setImageUrl} 
+              onScanComplete={(score, correct) => {
+                setScanScore(score);
+                setIsCorrect(correct);
+              }} 
+            />
           </div>
 
-          {/* Previews attached image */}
-          {imageUrl && (
-            <div className="flex flex-col md:flex-row items-center gap-4 bg-bg-secondary/40 p-4 rounded-xl border border-brand-primary/5">
-              <div className="w-24 h-24 rounded-lg overflow-hidden shrink-0 border border-brand-primary/10">
-                <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
-              </div>
-
+          {/* Previews attached image & AI Analyzer action */}
+          {imageUrl && isCorrect && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="flex flex-col md:flex-row items-center gap-4 bg-bg-secondary/60 p-4 rounded-xl border border-brand-success/20 mt-2"
+            >
               <div className="flex-1 space-y-2">
-                <p className="text-xs text-text-muted font-semibold">
-                  Image attached successfully! Hit AI Auto-Analyze to analyze with Gemini.
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-brand-success">
+                  <Sparkles className="w-4 h-4 text-brand-success animate-pulse" />
+                  Structural Match Approved! Proceed to AI Gemini Analysis.
+                </div>
+                <p className="text-[11px] text-text-muted">
+                  Gemini will parse the site layout to assess severity, identify hazards, and formulate localized civic action paths.
                 </p>
                 <button
                   type="button"
                   disabled={analyzing}
                   onClick={handleAIAnalyze}
-                  className="px-4 py-2 bg-brand-primary hover:bg-brand-primary-dark text-white font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-md"
+                  className="px-4 py-2 bg-brand-primary hover:bg-brand-primary-dark text-white font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-md transition-all active:scale-[0.98]"
                 >
                   <Sparkles className="w-4 h-4 text-brand-warning animate-pulse" />
-                  {analyzing ? "AI Structural Analysing..." : "AI Structural Analysis"}
+                  {analyzing ? "AI Structural Analyzing..." : "Run AI Gemini Analysis"}
                 </button>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* AI Analyzed details box */}
@@ -346,7 +324,9 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
               <div className="grid grid-cols-2 gap-3 text-[11px]">
                 <div>
                   <span className="text-text-muted block">Authenticity Check:</span>
-                  <span className="font-bold text-brand-success">{isReal ? "✓ Real Unaltered" : "⚠ Artificial"}</span>
+                  <span className={`font-bold ${isReal ? "text-brand-success" : "text-brand-critical"}`}>
+                    {isReal ? "✓ Real Unaltered" : "⚠ Artificial/Unrelated"}
+                  </span>
                 </div>
                 <div>
                   <span className="text-text-muted block">Confidence Score:</span>

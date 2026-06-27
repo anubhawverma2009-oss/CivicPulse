@@ -97,7 +97,7 @@ export interface IssueReport {
   id: string;
   title: string;
   description: string;
-  category: "POTHOLE" | "STREETLIGHT" | "GARBAGE" | "WATER LEAKAGE" | "FOOTPATH" | "TRAFFIC";
+  category: string;
   severity: number; // 1-10
   location: string; // Locality ward string
   latitude: number;

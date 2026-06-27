@@ -38,15 +38,9 @@ export default function IssueCard({
   // Resolution submission states (for authority)
   const [activeResolution, setActiveResolution] = useState(false);
   const [resolutionDesc, setResolutionDesc] = useState("");
-  const [resolutionProofPrompt, setResolutionProofPrompt] = useState("");
-  const [resolutionProofUrl, setResolutionProofUrl] = useState("");
-  const [generatingProof, setGeneratingProof] = useState(false);
 
   // Peer Evidence States
   const [newEvidenceDesc, setNewEvidenceDesc] = useState("");
-  const [evidenceImagePrompt, setEvidenceImagePrompt] = useState("");
-  const [evidenceProofUrl, setEvidenceProofUrl] = useState("");
-  const [generatingEvidenceProof, setGeneratingEvidenceProof] = useState(false);
 
   const getCategoryDetails = (catName: string) => {
     return CATEGORIES.find(c => c.name.toUpperCase() === catName.toUpperCase()) || CATEGORIES[0];
@@ -77,61 +71,13 @@ export default function IssueCard({
     }
   };
 
-  const handleAISynthProof = async () => {
-    if (!resolutionProofPrompt) {
-      alert("Please describe what the fixed site looks like to generate proof.");
-      return;
-    }
-    setGeneratingProof(true);
-    try {
-      const response = await fetch("/api/gemini/generate-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: `repaired and fixed ${resolutionProofPrompt}, clean road pavement, neat municipal work, day photo` })
-      });
-      const data = await response.json();
-      if (data.imageUrl) {
-        setResolutionProofUrl(data.imageUrl);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setGeneratingProof(false);
-    }
-  };
-
-  const handleAIEvidenceProof = async () => {
-    if (!evidenceImagePrompt) {
-      alert("Please describe the proof image to generate.");
-      return;
-    }
-    setGeneratingEvidenceProof(true);
-    try {
-      const res = await fetch("/api/gemini/generate-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: `${evidenceImagePrompt}, raw municipal damage, citizen witness phone photo` })
-      });
-      const d = await res.json();
-      if (d.imageUrl) {
-        setEvidenceProofUrl(d.imageUrl);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setGeneratingEvidenceProof(false);
-    }
-  };
-
   const submitResolution = () => {
     if (!resolutionDesc) {
       alert("Please write a short description of the fix work completed.");
       return;
     }
-    onAddResolution(issue.id, resolutionDesc, resolutionProofUrl || undefined);
+    onAddResolution(issue.id, resolutionDesc);
     setResolutionDesc("");
-    setResolutionProofPrompt("");
-    setResolutionProofUrl("");
     setActiveResolution(false);
   };
 
@@ -140,10 +86,8 @@ export default function IssueCard({
       alert("Please add a short description of what you observed.");
       return;
     }
-    onAddPeerEvidence(issue.id, newEvidenceDesc, evidenceProofUrl || undefined);
+    onAddPeerEvidence(issue.id, newEvidenceDesc);
     setNewEvidenceDesc("");
-    setEvidenceImagePrompt("");
-    setEvidenceProofUrl("");
     setActiveEvidence(false);
   };
 
@@ -494,40 +438,13 @@ export default function IssueCard({
                    onChange={(e) => setResolutionDesc(e.target.value)}
                    placeholder="Details of the repaired pothole / restored bulb..."
                    className="w-full bg-bg-primary border border-brand-primary/10 rounded-lg p-2.5 text-xs text-text-primary h-14 resize-none focus:outline-none focus:border-brand-primary font-sans"
-                 />
-               </div>
-
-               {/* Synthetic Image Proof generation */}
+                  />
+                  {/* Synthetic Image Proof generation */}
                <div className="space-y-2">
                  <label className="block text-[10px] font-bold text-text-secondary">
-                   Generate Before/After Resolution Proof Photo
+                   Upload Resolution Proof Photo
                  </label>
-                 <div className="flex gap-2">
-                   <input
-                     type="text"
-                     value={resolutionProofPrompt}
-                     onChange={(e) => setResolutionProofPrompt(e.target.value)}
-                     placeholder="Describe fixed site (e.g. freshly paved road)..."
-                     className="flex-1 bg-bg-primary border border-brand-primary/10 rounded-lg px-2.5 py-1.5 text-xs text-text-primary focus:outline-none"
-                   />
-                   <button
-                     type="button"
-                     disabled={generatingProof || !resolutionProofPrompt}
-                     onClick={handleAISynthProof}
-                     className="bg-brand-primary/25 hover:bg-brand-primary/40 border border-brand-primary/30 px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1 hover:border-brand-primary cursor-pointer disabled:opacity-50"
-                   >
-                     {generatingProof ? "Synthesizing..." : "AI Photo"}
-                   </button>
-                 </div>
-
-                 {resolutionProofUrl && (
-                   <div className="w-full h-20 rounded-lg overflow-hidden border border-brand-success/30 relative">
-                     <img src={resolutionProofUrl} alt="Synthetic proof" className="w-full h-full object-cover" />
-                     <div className="absolute top-1 right-1 bg-brand-success px-1.5 py-0.5 rounded text-[8px] font-bold text-white">
-                       AI PROOF SEED
-                     </div>
-                   </div>
-                 )}
+               </div>
                </div>
 
                <div className="flex justify-end gap-2 pt-1">
@@ -679,43 +596,10 @@ export default function IssueCard({
                   />
                 </div>
 
-                {/* Evidence Synthetic proof generator */}
-                <div className="space-y-1.5">
-                  <span className="text-[9px] font-bold text-text-muted block">AI Witness Photo Proof Generator</span>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={evidenceImagePrompt}
-                      onChange={(e) => setEvidenceImagePrompt(e.target.value)}
-                      placeholder="Describe the witness photo (e.g. flickering light at dusk)..."
-                      className="flex-1 bg-bg-primary border border-brand-primary/10 rounded-lg px-2 py-1.5 text-[10px] text-text-primary focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      disabled={generatingEvidenceProof || !evidenceImagePrompt}
-                      onClick={handleAIEvidenceProof}
-                      className="bg-brand-warning/15 hover:bg-brand-warning/25 border border-brand-warning/20 px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-brand-warning flex items-center gap-1 hover:border-brand-warning cursor-pointer disabled:opacity-50"
-                    >
-                      {generatingEvidenceProof ? "Generat..." : "Gen Photo"}
-                    </button>
-                  </div>
-
-                  {evidenceProofUrl && (
-                    <div className="w-full h-20 rounded-lg overflow-hidden border border-brand-warning/30 relative mt-1.5">
-                      <img src={evidenceProofUrl} alt="Witness Proof" className="w-full h-full object-cover" />
-                      <div className="absolute top-1 right-1 bg-brand-warning px-1.5 py-0.5 rounded text-[8px] font-bold text-black">
-                        AI WITNESS EVIDENCE
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 <div className="flex justify-end gap-2 pt-1">
                   <button
                     onClick={() => {
                       setNewEvidenceDesc("");
-                      setEvidenceImagePrompt("");
-                      setEvidenceProofUrl("");
                       setActiveEvidence(false);
                     }}
                     className="px-2.5 py-1 rounded bg-bg-tertiary text-text-secondary text-[10px] font-semibold hover:text-white"

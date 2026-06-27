@@ -37,8 +37,6 @@ export default function AuthScreen({ onLogin }: AuthScreenProps) {
   const [authMode, setAuthMode] = useState<"signup" | "login">("signup");
   
   // Auth state
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -145,107 +143,6 @@ export default function AuthScreen({ onLogin }: AuthScreenProps) {
     }
   };
 
-  // Submit initial Email credentials (Log In or Sign Up)
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-
-    // Inputs validation
-    if (!email.trim()) {
-      setErrorMessage("Please enter an email address.");
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setErrorMessage("Invalid email format. Please enter a valid email address.");
-      return;
-    }
-    if (!password || password.length < 6) {
-      setErrorMessage("Password must be at least 6 characters long.");
-      return;
-    }
-
-    setLoading(true);
-    if (authMode === "login") {
-      setLoadingMessage("Verifying credentials...");
-      try {
-        const loggedUser = await CivicAuth.signIn(email, password);
-        setTempAuth({
-          email: loggedUser.email,
-          uid: loggedUser.uid,
-          photoURL: loggedUser.photoURL
-        });
-        
-        if (loggedUser.onboardingComplete) {
-          onLogin(loggedUser);
-          return;
-        }
-
-        // If they exist but haven't onboarded, let them finish profile setup
-        setRole(loggedUser.role || "citizen");
-        setProfileName(loggedUser.name || "");
-        setLocation(loggedUser.location || PREDEFINED_LOCATIONS[0]);
-        setMoney(loggedUser.money !== undefined ? loggedUser.money : (loggedUser.role === "authority" ? 5000000 : 1000));
-        if (loggedUser.role === "authority") {
-          setDepartment(loggedUser.department || DEPARTMENTS[0]);
-          setDesignation(loggedUser.designation || "");
-          setBio(loggedUser.bio || "");
-          setDocVerified(loggedUser.documentVerified || false);
-        }
-        setStep("details");
-      } catch (err: any) {
-        console.error("Login Error:", err);
-        setErrorMessage(mapErrorToUserFriendlyMessage(err));
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      // Sign Up Mode: Check if email is unique first
-      setLoadingMessage("Checking account availability...");
-      try {
-        const existing = await CivicAuth.getUserByEmail(email);
-        if (existing) {
-          setErrorMessage("An account with this email address already exists. Please switch to 'Log In'.");
-          setLoading(false);
-          return;
-        }
-
-        setLoadingMessage("Creating account secure keys...");
-        // Fast sign up to get UID and register Auth keys
-        const tempProfile = await CivicAuth.signUp({
-          email,
-          password,
-          name: "Pending Verification",
-          role: "citizen",
-          location: PREDEFINED_LOCATIONS[0],
-          photoURL: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(email)}`,
-          money: 1000,
-          onboardingComplete: false
-        });
-
-        setTempAuth({
-          email,
-          uid: tempProfile.uid,
-          photoURL: tempProfile.photoURL
-        });
-
-        // Trigger real email verification (or log simulation)
-        setLoadingMessage("Sending verification link...");
-        try {
-          await CivicAuth.sendVerification();
-        } catch (verifErr) {
-          console.warn("Could not dispatch real verification email, relying on in-app bypass:", verifErr);
-        }
-
-        setStep("verify");
-      } catch (err: any) {
-        console.error("Registration Error:", err);
-        setErrorMessage(mapErrorToUserFriendlyMessage(err));
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
   // Google Login Flow
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -276,6 +173,12 @@ export default function AuthScreen({ onLogin }: AuthScreenProps) {
       }
       setStep("details");
     } catch (err: any) {
+      if (err.code === 'auth/popup-closed-by-user') {
+        setErrorMessage("Login was cancelled. Please try again when you're ready.");
+        setLoading(false);
+        return;
+      }
+
       console.warn("Google login error, using graceful high-fidelity sandbox fallback:", err);
       // Hardened fallback for sandboxed Google OAuth environment
       const fallbackEmail = "vermavijay31550@gmail.com";
@@ -412,7 +315,7 @@ export default function AuthScreen({ onLogin }: AuthScreenProps) {
         // Fallback create completely from scratch
         const createdProfile = await CivicAuth.signUp({
           email: emailAddress,
-          password: password || "Password123!",
+          password: "Password123!",
           name: profileName,
           role,
           location,
@@ -429,60 +332,6 @@ export default function AuthScreen({ onLogin }: AuthScreenProps) {
     } catch (err: any) {
       console.error("Profile setup failure:", err);
       setErrorMessage(mapErrorToUserFriendlyMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Quick preset bypass - instantly logs in demonstration personas
-  const triggerQuickLogin = async (type: "citizen" | "authority") => {
-    setLoading(true);
-    setLoadingMessage("Summoning verified sandbox profile...");
-    setErrorMessage(null);
-    try {
-      let targetEmail = type === "citizen" ? "aravind@gmail.com" : "authority@muncipal.in";
-      const loggedUser = await CivicAuth.signIn(targetEmail, "Password123!");
-      onLogin(loggedUser);
-    } catch (err: any) {
-      console.warn("Preset fast signIn failed, doing simulated profile initialization:", err);
-      // Fallback sandbox profiles for instant testing
-      if (type === "citizen") {
-        const citizenProfile: UserProfile = {
-          uid: "user-aravind",
-          email: "aravind@gmail.com",
-          photoURL: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
-          name: "Aravind Dev",
-          role: "citizen",
-          location: "Varanasi, Sigra Ward",
-          civicScore: 1240,
-          badges: ["first_reporter", "guard", "truth_seeker", "landmark"],
-          savedIssues: [],
-          createdAt: new Date().toISOString(),
-          onboardingComplete: true
-        };
-        await CivicAuth.updateProfile("user-aravind", citizenProfile);
-        onLogin(citizenProfile);
-      } else {
-        const authorityProfile: UserProfile = {
-          uid: "user-muni",
-          email: "authority@muncipal.in",
-          photoURL: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&q=80",
-          name: "Director Mishra",
-          role: "authority",
-          location: "Varanasi Central District",
-          civicScore: 100,
-          badges: [],
-          savedIssues: [],
-          createdAt: new Date().toISOString(),
-          department: "PWD Pavement & Roads",
-          designation: "Executive Engineer",
-          bio: "Overseeing public infrastructure maintenance and safety operations for Varanasi East division.",
-          documentVerified: true,
-          onboardingComplete: true
-        };
-        await CivicAuth.updateProfile("user-muni", authorityProfile);
-        onLogin(authorityProfile);
-      }
     } finally {
       setLoading(false);
     }
@@ -594,118 +443,8 @@ export default function AuthScreen({ onLogin }: AuthScreenProps) {
             className="w-full max-w-md glass-panel p-6 md:p-8 rounded-2xl relative z-10 shadow-2xl"
           >
             {/* Header */}
-            <div className="flex items-center justify-between mb-5">
-              <button
-                onClick={() => setStep("welcome")}
-                className="p-2 rounded-lg bg-bg-secondary hover:bg-bg-secondary-hover border border-brand-primary/10 text-text-secondary hover:text-text-primary transition-all cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
-                title="Go Back"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-              <h2 className="text-base md:text-lg font-bold text-text-primary tracking-tight">Secure Portal Access</h2>
-              <div className="w-10"></div>
-            </div>
-
-            {/* Toggle tabs: Create Account vs Log In */}
-            <div className="flex bg-bg-secondary p-1 rounded-md mb-5 border border-brand-primary/5">
-              <button
-                onClick={() => {
-                  setAuthMode("signup");
-                  setErrorMessage(null);
-                }}
-                className={`flex-1 py-2 text-xs font-semibold rounded transition-all cursor-pointer min-h-[36px] ${
-                  authMode === "signup"
-                    ? "bg-brand-primary text-white shadow"
-                    : "text-text-muted hover:text-text-secondary"
-                }`}
-              >
-                Create Account
-              </button>
-              <button
-                onClick={() => {
-                  setAuthMode("login");
-                  setErrorMessage(null);
-                }}
-                className={`flex-1 py-2 text-xs font-semibold rounded transition-all cursor-pointer min-h-[36px] ${
-                  authMode === "login"
-                    ? "bg-brand-primary text-white shadow"
-                    : "text-text-muted hover:text-text-secondary"
-                }`}
-              >
-                Log In
-              </button>
-            </div>
-
-            {/* Authentication Form */}
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold text-text-secondary uppercase tracking-widest mb-1.5">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g. name@domain.com"
-                    className="w-full bg-bg-secondary border border-brand-primary/10 rounded-lg pl-10 pr-4 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-primary transition-colors text-sm min-h-[48px]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-text-secondary uppercase tracking-widest mb-1.5">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Min 6 characters"
-                    className="w-full bg-bg-secondary border border-brand-primary/10 rounded-lg pl-10 pr-4 py-2.5 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-primary transition-colors text-sm min-h-[48px]"
-                  />
-                </div>
-              </div>
-
-              {errorMessage && (
-                <div className="p-3 bg-brand-critical/10 border border-brand-critical/20 rounded-lg text-xs text-brand-critical/95 font-medium flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>{errorMessage}</span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 rounded-lg font-semibold text-xs md:text-sm transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer bg-brand-primary text-white hover:bg-brand-primary-dark shadow-lg shadow-brand-primary/15 min-h-[48px] disabled:opacity-55 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    {loadingMessage}
-                  </span>
-                ) : (
-                  <>
-                    {authMode === "signup" ? "Continue to Email Verification" : "Sign In & Enter Dashboard"}
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </form>
-
-            {/* Social Auth Separator */}
-            <div className="relative my-5 text-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-brand-primary/10"></div>
-              </div>
-              <span className="relative bg-bg-primary px-3 text-[9px] font-extrabold text-text-muted uppercase tracking-wider">
-                Or access instantly with
-              </span>
+            <div className="flex items-center justify-center mb-8">
+              <h2 className="text-xl md:text-2xl font-bold text-text-primary tracking-tight">Secure Portal Access</h2>
             </div>
 
             {/* Google Login button */}
@@ -713,39 +452,16 @@ export default function AuthScreen({ onLogin }: AuthScreenProps) {
               type="button"
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="w-full py-2.5 rounded-lg font-medium text-xs border border-brand-primary/15 bg-bg-secondary/40 hover:bg-bg-secondary hover:border-brand-primary/30 text-text-primary transition-all flex items-center justify-center gap-2.5 cursor-pointer shadow-sm hover:shadow-md min-h-[48px] disabled:opacity-50"
+              className="w-full py-4 rounded-xl font-semibold text-sm border-2 border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300 text-gray-900 transition-all flex items-center justify-center gap-3 cursor-pointer shadow-sm hover:shadow-md min-h-[56px] disabled:opacity-50"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
                   fill="#EA4335"
                   d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.578-7.859-8s3.53-8 7.859-8c2.46 0 4.105 1.025 5.047 1.926l3.227-3.107C18.28 1.455 15.495 0 12.24 0 5.58 0 0 5.37 0 12s5.58 12 12.24 12c6.96 0 11.57-4.83 11.57-11.79 0-.795-.085-1.4-.185-1.925H12.24z"
                 />
               </svg>
-              Continue with Google Account
+              Continue with Google
             </button>
-
-            {/* Presets bypassing */}
-            <div className="pt-4 border-t border-brand-primary/10 text-center">
-              <p className="text-[10px] text-text-muted mb-2 font-semibold tracking-wider uppercase">
-                ⚡ Development Sandbox bypass:
-              </p>
-              <div className="flex flex-wrap justify-center gap-2">
-                <button
-                  onClick={() => triggerQuickLogin("citizen")}
-                  disabled={loading}
-                  className="px-2.5 py-1.5 rounded-md text-[10px] font-bold bg-bg-secondary border border-brand-primary/5 hover:bg-brand-primary hover:text-white transition-colors cursor-pointer min-h-[36px]"
-                >
-                  🙋‍♂️ Citizen Aravind
-                </button>
-                <button
-                  onClick={() => triggerQuickLogin("authority")}
-                  disabled={loading}
-                  className="px-2.5 py-1.5 rounded-md text-[10px] font-bold bg-bg-secondary border border-brand-primary/5 hover:bg-brand-primary hover:text-white transition-colors cursor-pointer min-h-[36px]"
-                >
-                  🏛️ Director Mishra
-                </button>
-              </div>
-            </div>
           </motion.div>
         )}
 
@@ -769,21 +485,6 @@ export default function AuthScreen({ onLogin }: AuthScreenProps) {
             <p className="text-xs text-text-muted mt-2 max-w-sm mx-auto">
               We sent a verification link to <span className="text-text-primary font-bold">{tempAuth?.email}</span>. Please click the link to activate your portal.
             </p>
-
-            <div className="my-6 p-4 rounded-xl border border-brand-primary/10 bg-bg-secondary/40 space-y-3">
-              <p className="text-[10px] font-bold text-brand-primary uppercase tracking-wider">
-                🚀 Sandboxed testing options
-              </p>
-              <p className="text-[11px] text-text-secondary leading-relaxed">
-                If SMTP/email delivery is delayed or you want to proceed instantly, use the fast bypass to complete onboarding:
-              </p>
-              <button
-                onClick={() => handleVerifyComplete(true)}
-                className="w-full py-2 px-4 rounded-lg bg-brand-primary/20 hover:bg-brand-primary text-brand-primary hover:text-white border border-brand-primary/25 text-xs font-semibold transition-all cursor-pointer min-h-[44px]"
-              >
-                Verify In-App (Bypass SMTP)
-              </button>
-            </div>
 
             <div className="flex flex-col gap-2.5">
               <button
