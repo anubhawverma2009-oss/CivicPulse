@@ -20,13 +20,14 @@ export default function DrishtiBot({ currentUser, issues }: DrishtiBotProps) {
     {
       id: "welcome",
       role: "bot",
-      content: `🤖 Namaste ${currentUser.name}! I am DrishtiBot, your AI Civic Assistant. Ask me about active potholes, streetlights, sanitation, or how to earn Civic Coins and badges!`,
+      content: `🤖 Namaste ${currentUser.name}! I am your Civic Pulse AI Assistant. Ask me about active potholes, streetlights, sanitation, or how to earn Civic Coins and badges!`,
       timestamp: new Date().toISOString()
     }
   ]);
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  
   const recognitionRef = useRef<any>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +49,9 @@ export default function DrishtiBot({ currentUser, issues }: DrishtiBotProps) {
       recognitionRef.current.onerror = (event: any) => {
         console.error("Speech recognition error:", event.error);
         setIsRecording(false);
+        if (event.error === 'not-allowed') {
+          alert("🎤 Microphone Access Blocked:\nPlease grant microphone permissions in your browser. Since this application runs in an iframe, we have updated our platform permissions. If it still doesn't work, click the 'Open in New Tab' icon at the top right of the preview to run the application directly!");
+        }
       };
     } else {
       console.warn("Speech recognition not supported in this browser.");
@@ -134,11 +138,11 @@ export default function DrishtiBot({ currentUser, issues }: DrishtiBotProps) {
 
       setMessages(prev => [...prev, botMsg]);
     } catch (err) {
-      console.warn("DrishtiBot call failed, using high-fidelity offline fallback:", err);
+      console.warn("DrishtiBot AI call failed, using high-fidelity offline fallback:", err);
       
       // Robust client-side keyword fallback
       const lowerMsg = userMsg.toLowerCase();
-      let reply = `🤖 Namaste! I'm DrishtiBot. `;
+      let reply = `🤖 Namaste! I'm your Civic Pulse AI Assistant. `;
       
       if (lowerMsg.includes("pothole") || lowerMsg.includes("road")) {
         reply += "Road safety is our highest priority! There are active reports of deep potholes at Sigra crossing. Report new ones with real images to gain +25 Civic Points!";
@@ -170,7 +174,7 @@ export default function DrishtiBot({ currentUser, issues }: DrishtiBotProps) {
       {
         id: "welcome",
         role: "bot",
-        content: `🤖 Chat history cleared. Namaste ${currentUser.name}! I am DrishtiBot. Ask me about complaints, verifications, or civic points in ${currentUser.location}!`,
+        content: `🤖 Chat history cleared. Namaste ${currentUser.name}! I am your Civic Pulse AI Assistant. Ask me about complaints, verifications, or civic points in ${currentUser.location}!`,
         timestamp: new Date().toISOString()
       }
     ]);
@@ -186,7 +190,7 @@ export default function DrishtiBot({ currentUser, issues }: DrishtiBotProps) {
           </div>
           <div className="min-w-0">
             <h3 className="text-sm md:text-base font-bold font-display text-text-primary flex items-center gap-1.5">
-              DrishtiBot Civic AI
+              Civic Pulse <span className="text-blue-500">AI</span>
               <Sparkles className="w-3.5 h-3.5 text-brand-warning animate-pulse shrink-0" />
             </h3>
             <p className="text-[10px] md:text-xs text-text-muted truncate">Civic assistant for {currentUser.location}</p>
@@ -228,7 +232,7 @@ export default function DrishtiBot({ currentUser, issues }: DrishtiBotProps) {
           <div className="flex justify-start">
             <div className="bg-bg-secondary border border-brand-primary/10 rounded-2xl rounded-bl-none px-4 py-3 text-xs text-text-muted flex items-center gap-2.5 shadow-sm">
               <Bot className="w-4.5 h-4.5 animate-bounce text-brand-primary" />
-              <span className="text-[11px] md:text-xs">DrishtiBot is typing...</span>
+              <span className="text-[11px] md:text-xs">Civic Pulse AI is typing...</span>
             </div>
           </div>
         )}
@@ -253,12 +257,13 @@ export default function DrishtiBot({ currentUser, issues }: DrishtiBotProps) {
         ))}
       </div>
 
-      {/* Message Input Form */}
+      {/* Message Input Form with restored STT Mic */}
       <form onSubmit={handleSendMessage} className="flex gap-2 shrink-0">
         <button
           type="button"
           onClick={toggleRecording}
           className={`p-2.5 rounded-xl transition-all ${isRecording ? 'bg-red-500 text-white' : 'bg-bg-secondary text-text-primary hover:bg-slate-800 border border-brand-primary/15'}`}
+          title="Speak to type"
         >
           <Mic className="w-5 h-5" />
         </button>

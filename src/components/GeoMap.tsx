@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 import { IssueReport, UserProfile } from "../types";
 import { detectLocationByIP, detectLocationByGPS } from "../utils/location";
 import { MapPin, Users, Info, Locate, RotateCw, Plus, Navigation } from "lucide-react";
+import CivicPulseLogo from "./CivicPulseLogo";
 
 interface GeoMapProps {
   issues: IssueReport[];
@@ -167,11 +168,8 @@ export default function GeoMap({
 
   if (loading) {
     return (
-      <div id="map-loading-indicator" className="p-12 glass-panel rounded-2xl text-center space-y-3.5 flex flex-col items-center justify-center min-h-[480px] border border-brand-primary/10 shadow-lg bg-bg-secondary/20">
-        <div className="relative">
-          <div className="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
-          <MapPin className="w-5 h-5 text-brand-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-        </div>
+      <div id="map-loading-indicator" className="p-12 glass-panel rounded-2xl text-center space-y-5 flex flex-col items-center justify-center min-h-[480px] border border-brand-primary/10 shadow-lg bg-bg-secondary/20">
+        <CivicPulseLogo variant="square-icon" size={60} animate={true} />
         <div className="space-y-1">
           <p className="text-sm font-semibold text-text-secondary animate-pulse">Initializing OpenStreetMap Grid...</p>
           <p className="text-[10px] text-text-muted">Resolving coordinates via immediate IP lookup & GPS satellites</p>

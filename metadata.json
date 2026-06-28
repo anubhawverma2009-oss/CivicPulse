@@ -1,8 +1,9 @@
 {
-  "name": "CivicPulse AI",
+  "name": "Civic Pulse AI",
   "description": "A hyperlocal AI-powered civic platform for reporting issues, community polling, and tracking resolution status.",
   "requestFramePermissions": [
-    "geolocation"
+    "geolocation",
+    "microphone"
   ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

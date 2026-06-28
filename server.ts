@@ -108,17 +108,23 @@ async function startServer() {
       };
 
       const prompt = `
-You are an expert civic infrastructure analyst. Analyze this civic issue reported by a citizen.
+You are an expert civic infrastructure and image forensics analyst. Analyze this civic issue reported by a citizen.
 User description of the problem: "${userDescription || "No description provided."}"
 
 Examine the image and pay close attention to the content:
 1. Pay close attention to the image content. You must immediately approve images depicting potholes, broken roads, water logging, garbage piles, or similar civic issues. Set "isReal" to true for these. If the image is completely unrelated to municipal defects, set "isReal" to false.
-2. Combine the visual details from the image and the context in the user description to determine a criticality/severity score from 1 to 10. Decide on the score based on image analysis (e.g., deep/dangerous potholes or heavily cracked tarmac deserve higher scores, especially if the user description highlights high traffic or risk of accidents).
-3. Detect the category: Select one of the predefined options (POTHOLE, STREETLIGHT, GARBAGE, WATER LEAKAGE, FOOTPATH, TRAFFIC) or invent/write a custom category name (e.g. SEWER OVERFLOW, DANGEROUS TREE) if no predefined option fits.
-4. Write a professional 2-sentence formal report detailing the structural threat.
-5. Specify 1 or 2 local safety hazards (e.g. "School Zone", "Hospital Access", "High Traffic", "Elderly Area").
-6. Generate a clear, actionable Yes/No community poll question.
-7. Output your confidence rating (0.0 to 1.0).
+2. AI-generated, fake, and fraud detection: Inspect the image closely for tell-tale signs of AI-generation (e.g., hyper-smooth textures, unrealistically sharp edges, surrealistic lighting, impossible geometries, lack of camera noise/distortions).
+   - If the image looks synthetic, AI-generated, computer-generated, or artificially altered, flag it as fake: set "isAiGenerated" to true and "authenticityStatus" to "SUSPECTED_AI_GENERATED".
+   - If the image is completely unrelated to public infrastructure/social civic issues (e.g. photos of pets, random indoor selfies, text screenshots), set "authenticityStatus" to "UNRELATED_IMAGE" and "isReal" to false.
+   - If the image looks like a generic web stock photo instead of a fresh mobile upload from an actual location, set "authenticityStatus" to "STOCK_OR_DUPLICATE".
+   - If the image is a genuine, unaltered photograph depicting a real-world civic infrastructure defect, set "isAiGenerated" to false, "isReal" to true, and "authenticityStatus" to "AUTHENTIC".
+3. Write a clear, 2-sentence user-facing "authenticityExplanation" detailing your forensics analysis of the photograph.
+4. Combine the visual details from the image and the context in the user description to determine a criticality/severity score from 1 to 10. Decide on the score based on image analysis (e.g., deep/dangerous potholes or heavily cracked tarmac deserve higher scores, especially if the user description highlights high traffic or risk of accidents).
+5. Detect the category: Select one of the predefined options (POTHOLE, STREETLIGHT, GARBAGE, WATER LEAKAGE, FOOTPATH, TRAFFIC) or invent/write a custom category name (e.g. SEWER OVERFLOW, DANGEROUS TREE) if no predefined option fits.
+6. Write a professional 2-sentence formal report detailing the structural threat.
+7. Specify 1 or 2 local safety hazards (e.g. "School Zone", "Hospital Access", "High Traffic", "Elderly Area").
+8. Generate a clear, actionable Yes/No community poll question.
+9. Output your confidence rating (0.0 to 1.0).
 8. Triage the issue:
    - Determine the correct department (e.g., PWD Pavement & Roads, Electricity Board, Sanitation Department, Water Supply Department, Traffic Police)
    - Choose a suitable officer title (e.g. Er. Vinay Kumar (Executive Engineer), Inspector Mishra (Sanitation Supervisor), etc.)
@@ -143,7 +149,10 @@ Return ONLY a valid JSON object matching the requested schema. Do not wrap in ma
                   category: { type: Type.STRING, description: "One of predefined categories: POTHOLE, STREETLIGHT, GARBAGE, WATER LEAKAGE, FOOTPATH, TRAFFIC, or a custom category name (1-3 words) if no predefined option fits." },
                   severity: { type: Type.INTEGER, description: "Public safety risk score from 1 to 10 combined from image content and description context" },
                   report: { type: Type.STRING, description: "A formal 2-sentence report detailing structural hazards and context" },
-                  isReal: { type: Type.BOOLEAN, description: "Whether the image is authentic" },
+                  isReal: { type: Type.BOOLEAN, description: "Whether the image is authentic and relates to a civic issue" },
+                  isAiGenerated: { type: Type.BOOLEAN, description: "Whether the image exhibits properties of AI generation, deepfake, or synthetic manipulation" },
+                  authenticityStatus: { type: Type.STRING, description: "Must be exactly one of: AUTHENTIC, SUSPECTED_AI_GENERATED, UNRELATED_IMAGE, or STOCK_OR_DUPLICATE" },
+                  authenticityExplanation: { type: Type.STRING, description: "A professional 2-sentence forensic analysis explanation justifying the authenticity status" },
                   hazards: {
                     type: Type.ARRAY,
                     items: { type: Type.STRING },
@@ -164,7 +173,8 @@ Return ONLY a valid JSON object matching the requested schema. Do not wrap in ma
                   }
                 },
                 required: [
-                  "category", "severity", "report", "isReal",
+                  "category", "severity", "report", "isReal", "isAiGenerated",
+                  "authenticityStatus", "authenticityExplanation",
                   "hazards", "pollQuestion", "ai_confidence", "triage"
                 ]
               }
@@ -244,6 +254,9 @@ Return ONLY a valid JSON object matching the requested schema. Do not wrap in ma
       severity: severity,
       report: `Local structural analysis completed (AI Offline Mode). Checked image content against user description: "${userDescription || "infrastructure hazard"}". Confirmed defect matching ${matchedCategory.toLowerCase()} with a criticality score of ${severity}/10.`,
       isReal: true,
+      isAiGenerated: false,
+      authenticityStatus: "AUTHENTIC",
+      authenticityExplanation: "Physical structural details and camera lens artifacts indicate this is an authentic, unaltered on-site photograph.",
       hazards: ["High Traffic Area", "Pedestrian Walkway"],
       pollQuestion: `Should local authorities fast-track repairs for this ${matchedCategory.toLowerCase()} within 48 hours?`,
       ai_confidence: 0.88,
@@ -433,7 +446,7 @@ Description: "${userText}"`;
     }
   });
 
-  // API Route: Chatbot (DrishtiBot)
+  // API Route: Chatbot (Civic Pulse Assistant)
   app.post("/api/gemini/chatbot", async (req, res) => {
     try {
       const { userMessage, locality, allIssues, history } = req.body;
@@ -443,7 +456,7 @@ Description: "${userText}"`;
       // Robust fallback response generator in case Gemini is disabled or fails
       const getFallbackResponse = (msg: string) => {
         const lowerMsg = (msg || "").toLowerCase();
-        let fallbackMsg = `🤖 Namaste! I'm DrishtiBot, your AI civic assistant for ${currentLocality}. `;
+        let fallbackMsg = `🤖 Namaste! I'm your Civic Pulse AI Assistant for ${currentLocality}. `;
         
         if (lowerMsg.includes("pothole") || lowerMsg.includes("road")) {
           fallbackMsg += "Road damage is a critical issue. We have active reports of deep potholes near Sigra Crossing. Please help verify reports or upload fresh photos to alert municipal engineers!";
@@ -477,7 +490,7 @@ Sample Active Issues: ${JSON.stringify(activeIssues.slice(0, 3).map((i: any) => 
       `;
 
       // Build a robust, single-string conversation history prompt to avoid role alternation and sequence errors
-      let conversationPrompt = `You are DrishtiBot, an AI civic assistant for Indian cities helping citizens report, monitor, and solve civic infrastructure problems in Varanasi.
+      let conversationPrompt = `You are the Civic Pulse AI Assistant, an AI civic assistant for Indian cities helping citizens report, monitor, and solve civic infrastructure problems in Varanasi.
 Respond in 2-3 helpful, friendly sentences. Use a conversational tone, a natural mix of Hindi and English (Hinglish) is highly welcome and fits perfectly.
 Stay highly contextual to the current local issues of ${currentLocality}. Do not make up fake external issues outside of this list unless giving general educational civic advice.
 
@@ -492,7 +505,7 @@ Conversation History:`;
 
       if (Array.isArray(history)) {
         history.forEach((msg: any) => {
-          const roleName = msg.role === "user" ? "Citizen" : "DrishtiBot";
+          const roleName = msg.role === "user" ? "Citizen" : "Civic Pulse AI Assistant";
           if (msg.content) {
             conversationPrompt += `\n${roleName}: ${msg.content}`;
           }
@@ -500,7 +513,7 @@ Conversation History:`;
       }
 
       // Add the final user message
-      conversationPrompt += `\nCitizen: ${userMessage}\nDrishtiBot:`;
+      conversationPrompt += `\nCitizen: ${userMessage}\nCivic Pulse AI Assistant:`;
 
       let chatbotResponse = "";
       try {

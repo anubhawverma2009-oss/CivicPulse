@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { CATEGORIES } from "../lib/data";
 import IssueCard from "./IssueCard";
 import DrishtiBot from "./DrishtiBot";
+import CivicPulseLogo from "./CivicPulseLogo";
 
 interface IssueFeedProps {
   issues: IssueReport[];
@@ -135,7 +136,9 @@ export default function IssueFeed({
                 exit={{ opacity: 0 }}
                 className="py-16 text-center glass-panel rounded-2xl"
               >
-                <AlertOctagon className="w-12 h-12 text-brand-warning mx-auto mb-3 animate-bounce" />
+                <div className="mb-4 flex justify-center">
+                  <CivicPulseLogo variant="circular-icon" size={54} animate={true} />
+                </div>
                 <h3 className="text-lg font-bold">No Issues Found</h3>
                 <p className="text-sm text-text-muted mt-1 px-4">
                   No civic complaints match the active filters in this locality. Report a new issue to alert municipal engineers!

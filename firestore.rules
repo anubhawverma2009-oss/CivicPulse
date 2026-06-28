@@ -35,7 +35,13 @@ service cloud.firestore {
     match /issues/{issueId} {
       allow list, get: if isSignedIn();
       allow create: if isSignedIn() && incoming().authorId == request.auth.uid;
-      allow update: if isSignedIn() && existing().authorId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        // Case 1: Author updates their own report
+        (existing().authorId == request.auth.uid) ||
+        // Case 2: Community and authority actions (voting, likes, comments, evidence, response updates)
+        (incoming().diff(existing()).affectedKeys().hasAny(['votedUserIds', 'pollVotes', 'votedResolutionUserIds', 'resolutionVotes', 'status', 'comments', 'peerEvidence', 'responses', 'likes', 'updatedAt']) &&
+         !incoming().diff(existing()).affectedKeys().hasAny(['title', 'description', 'category', 'latitude', 'longitude', 'imageUrl', 'authorId', 'authorName', 'createdAt']))
+      );
       allow delete: if false; // Disallow deletion for now
     }
   }

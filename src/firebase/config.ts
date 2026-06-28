@@ -240,6 +240,10 @@ const notifyAuthListeners = () => {
 // ==========================================
 
 export const CivicAuth = {
+  isFirebaseConfigured: () => {
+    return isFirebaseConfigured;
+  },
+
   // Signs up a new citizen or authority member
   signUp: async (profile: Omit<UserProfile, "uid" | "createdAt" | "badges" | "savedIssues" | "civicScore"> & { password?: string }): Promise<UserProfile> => {
     if (isFirebaseConfigured && realAuth) {

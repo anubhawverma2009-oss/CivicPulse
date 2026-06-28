@@ -33,6 +33,9 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
   const [cleaningUp, setCleaningUp] = useState(false);
   const [aiConfidence, setAiConfidence] = useState(0.85);
   const [isReal, setIsReal] = useState(true);
+  const [isAiGenerated, setIsAiGenerated] = useState(false);
+  const [authenticityStatus, setAuthenticityStatus] = useState<string>("");
+  const [authenticityExplanation, setAuthenticityExplanation] = useState<string>("");
   const [hazards, setHazards] = useState<string[]>(["High Traffic"]);
   const [pollQuestion, setPollQuestion] = useState("");
 
@@ -105,6 +108,9 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
       if (data.pollQuestion) setPollQuestion(data.pollQuestion);
       if (data.ai_confidence) setAiConfidence(data.ai_confidence);
       if (data.isReal !== undefined) setIsReal(data.isReal);
+      if (data.isAiGenerated !== undefined) setIsAiGenerated(data.isAiGenerated);
+      if (data.authenticityStatus !== undefined) setAuthenticityStatus(data.authenticityStatus);
+      if (data.authenticityExplanation !== undefined) setAuthenticityExplanation(data.authenticityExplanation);
     } catch (e) {
       console.error(e);
       alert("AI analysis completed with localized fallback assessment.");
@@ -117,6 +123,11 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
     e.preventDefault();
     if (!title || !description) {
       alert("Please complete title and description.");
+      return;
+    }
+
+    if (isAiGenerated || authenticityStatus === "SUSPECTED_AI_GENERATED") {
+      alert("⚠️ Submission Denied: This image is flagged as AI-generated or synthetic. Submitting complaints with fake/manipulated images violates community guidelines.");
       return;
     }
 
@@ -314,42 +325,95 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
             </motion.div>
           )}
 
-          {/* AI Analyzed details box */}
+          {/* AI Analyzed details box with Fraud Prevention forensics */}
           {(pollQuestion || hazards.length > 0) && (
-            <div className="bg-bg-secondary p-4 rounded-xl border border-brand-success/20 space-y-3">
-              <div className="text-xs font-bold text-brand-success uppercase tracking-wider flex items-center gap-1">
-                <ShieldCheck className="w-4 h-4 text-brand-success animate-bounce" /> Gemini Structural Audit Results
+            <div className="bg-bg-secondary p-4 rounded-xl border border-brand-success/20 space-y-4">
+              <div className="text-xs font-bold text-brand-success uppercase tracking-wider flex items-center justify-between border-b border-white/5 pb-2">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-brand-success animate-pulse" /> Gemini Forensics & Audit Results
+                </span>
+                <span className="text-[10px] text-text-muted bg-white/5 px-2 py-0.5 rounded font-mono">
+                  Engine: v3.5-Flash
+                </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-[11px]">
+              {/* Forensic Status Tag */}
+              <div className="bg-[#111827]/40 p-3 rounded-lg border border-white/5 space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-text-muted text-[11px] font-medium">Image Authenticity Forensics:</span>
+                  {authenticityStatus === "AUTHENTIC" || (!authenticityStatus && isReal) ? (
+                    <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wide uppercase flex items-center gap-1">
+                      ✓ Authentic On-Site Photo
+                    </span>
+                  ) : authenticityStatus === "SUSPECTED_AI_GENERATED" || isAiGenerated ? (
+                    <span className="bg-rose-500/15 text-rose-400 border border-rose-500/25 px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wide uppercase flex items-center gap-1 animate-pulse">
+                      ⚠ Suspected AI-Generated/Fake
+                    </span>
+                  ) : authenticityStatus === "UNRELATED_IMAGE" ? (
+                    <span className="bg-amber-500/15 text-amber-400 border border-amber-500/25 px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wide uppercase flex items-center gap-1">
+                      ⚠ Unrelated/Non-Civic Image
+                    </span>
+                  ) : authenticityStatus === "STOCK_OR_DUPLICATE" ? (
+                    <span className="bg-cyan-500/15 text-cyan-400 border border-cyan-500/25 px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wide uppercase flex items-center gap-1">
+                      ⚠ Recycled Stock Photo
+                    </span>
+                  ) : (
+                    <span className="bg-[#475569]/35 text-[#94A3B8] border border-[#475569]/50 px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wide uppercase flex items-center gap-1">
+                      Pending Verification
+                    </span>
+                  )}
+                </div>
+
+                {/* Forensics Analysis Text */}
+                <p className="text-[11px] text-text-secondary leading-relaxed italic bg-black/10 p-2 rounded border border-white/5">
+                  &ldquo;{authenticityExplanation || "Forensic analysis verifies the camera lens distortion, natural lighting anomalies, and noise texture patterns to authenticate origin."}&rdquo;
+                </p>
+              </div>
+
+              {/* Fraud Alert Warning Block */}
+              {(isAiGenerated || authenticityStatus === "SUSPECTED_AI_GENERATED" || authenticityStatus === "UNRELATED_IMAGE" || authenticityStatus === "STOCK_OR_DUPLICATE" || !isReal) && (
+                <div className="bg-rose-500/10 border border-rose-500/25 rounded-lg p-3 space-y-1">
+                  <div className="flex items-center gap-1.5 text-rose-400 text-xs font-bold uppercase tracking-wider">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                    Civic Integrity & Fraud Alert!
+                  </div>
+                  <p className="text-[11px] text-rose-300/90 leading-normal">
+                    This upload has been flagged by Gemini's social forensic guards. Submitting AI-generated, fake, or unrelated images to claim <strong>Civic Coins</strong> is a violation of community trust guidelines. Ward telemetry has logged this flag.
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 text-[11px] border-t border-white/5 pt-3">
                 <div>
-                  <span className="text-text-muted block">Authenticity Check:</span>
-                  <span className={`font-bold ${isReal ? "text-brand-success" : "text-brand-critical"}`}>
-                    {isReal ? "✓ Real Unaltered" : "⚠ Artificial/Unrelated"}
+                  <span className="text-text-muted block">Integrity Index:</span>
+                  <span className={`font-bold ${isReal && !isAiGenerated ? "text-emerald-400" : "text-rose-400"}`}>
+                    {isReal && !isAiGenerated ? "✓ Clean & Real" : "⚠ Flagged / Invalid"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-text-muted block">Confidence Score:</span>
+                  <span className="text-text-muted block">AI Confidence:</span>
                   <span className="font-bold text-text-secondary">{Math.round(aiConfidence * 100)}% Match</span>
                 </div>
               </div>
 
-              <div>
-                <span className="text-text-muted text-[11px] block">Detected Safety Hazards:</span>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {hazards.map((haz, i) => (
-                    <span key={i} className="bg-brand-critical/10 text-brand-critical border border-brand-critical/15 px-2 py-0.5 rounded text-[10px] font-semibold">
-                      ⚠ {haz}
-                    </span>
-                  ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-white/5 pt-3">
+                <div>
+                  <span className="text-text-muted text-[11px] block font-semibold mb-1">Detected Safety Hazards:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {hazards.map((haz, i) => (
+                      <span key={i} className="bg-brand-critical/10 text-brand-critical border border-brand-critical/15 px-2 py-0.5 rounded text-[10px] font-semibold">
+                        ⚠ {haz}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <span className="text-text-muted text-[11px] block">Generated Verification Question:</span>
-                <p className="text-xs text-text-secondary font-semibold mt-0.5">
-                  &ldquo;{pollQuestion}&rdquo;
-                </p>
+                <div>
+                  <span className="text-text-muted text-[11px] block font-semibold mb-1">Community Poll Question:</span>
+                  <p className="text-xs text-text-secondary font-semibold leading-snug">
+                    &ldquo;{pollQuestion}&rdquo;
+                  </p>
+                </div>
               </div>
             </div>
           )}

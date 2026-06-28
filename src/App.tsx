@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { UserProfile, IssueReport, Comment, ResolutionResponse, PeerEvidence } from "./types";
 import AuthScreen from "./components/AuthScreen";
+import CivicPulseLogo from "./components/CivicPulseLogo";
 import IssueFeed from "./components/IssueFeed";
 import Leaderboard from "./components/Leaderboard";
 import DrishtiBot from "./components/DrishtiBot";
@@ -14,7 +15,7 @@ import { CivicAuth, CivicDatabase } from "./firebase/config";
 import { 
   Building, LogOut, Sparkles, MessageSquare, AlertTriangle, User, PlusCircle, 
   MapPin, HelpCircle, Bell, Volume2, ShieldCheck, CheckCircle, Compass, Gift,
-  MoreHorizontal, RotateCw, Check, ChevronDown, Menu, X, Search
+  MoreHorizontal, RotateCw, Check, ChevronDown, Menu, X, Search, Map, Coins
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { findClosestLocation, detectLocationByIP, detectLocationByGPS } from "./utils/location";
@@ -22,6 +23,11 @@ import { findClosestLocation, detectLocationByIP, detectLocationByGPS } from "./
 export default function App() {
   // Authentication & State
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
+    if (CivicAuth.isFirebaseConfigured && CivicAuth.isFirebaseConfigured()) {
+      // In real Firebase mode, do not pre-load from localStorage synchronously
+      // to avoid triggering unauthenticated Firestore queries during auth restoration.
+      return null;
+    }
     const saved = localStorage.getItem("civicpulse_firebase_current");
     return saved ? JSON.parse(saved) : null;
   });
@@ -135,6 +141,22 @@ export default function App() {
 
   // Synchronize database state with real-time listeners and seed database if empty
   useEffect(() => {
+    // Subscribe to auth state changes
+    const unsubscribeAuth = CivicAuth.onAuthChanged((user) => {
+      setCurrentUser(user);
+    });
+
+    return () => {
+      unsubscribeAuth();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setIssues([]);
+      return;
+    }
+
     // Seed database if empty (relevant for real cloud Firestore mode)
     CivicDatabase.seedDatabaseIfEmpty();
 
@@ -143,16 +165,10 @@ export default function App() {
       setIssues(updatedIssues);
     });
 
-    // Subscribe to auth state changes
-    const unsubscribeAuth = CivicAuth.onAuthChanged((user) => {
-      setCurrentUser(user);
-    });
-
     return () => {
       unsubscribeIssues();
-      unsubscribeAuth();
     };
-  }, []);
+  }, [currentUser]);
 
   const showToast = (message: string) => {
     setNotification(message);
@@ -163,7 +179,7 @@ export default function App() {
 
   const handleLogin = (user: UserProfile) => {
     setCurrentUser(user);
-    showToast(`Namaste ${user.name}! Welcome to the CivicPulse AI cockpit.`);
+    showToast(`Namaste ${user.name}! Welcome to the Civic Pulse AI cockpit.`);
   };
 
   const handleLogout = async () => {
@@ -426,12 +442,7 @@ export default function App() {
               <div className="flex-1 overflow-y-auto p-5 space-y-6">
                 {/* Drawer Header */}
                 <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-sm shadow-md">C</div>
-                    <span className="font-black text-[#F1F5F9] tracking-tight text-base">
-                      CivicPulse<span className="text-blue-500">AI</span>
-                    </span>
-                  </div>
+                  <CivicPulseLogo variant="primary" size={32} animate={true} />
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setIsDrawerOpen(false)}
@@ -495,12 +506,13 @@ export default function App() {
                   >
                     <div className="flex items-center gap-3">
                       <AlertTriangle className="w-4 h-4 text-[#F59E0B]" />
-                      <span>Problem Priority Leaderboard</span>
+                      <span>Priority Issues</span>
                     </div>
                     {currentView === "leaderboard" && <Check className="w-3.5 h-3.5 shrink-0" />}
                   </button>
 
                   <button
+                    id="nav-issues-map-button"
                     onClick={() => {
                       setCurrentView("map");
                     }}
@@ -511,8 +523,8 @@ export default function App() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Compass className="w-4 h-4 text-brand-success" />
-                      <span>Google Maps Impact</span>
+                      <Map className="w-4 h-4 text-brand-success" />
+                      <span>Issue Map</span>
                     </div>
                     {currentView === "map" && <Check className="w-3.5 h-3.5 shrink-0" />}
                   </button>
@@ -529,7 +541,7 @@ export default function App() {
                   >
                     <div className="flex items-center gap-3">
                       <Sparkles className="w-4 h-4 text-brand-warning" />
-                      <span>Drishti AI Assistant</span>
+                      <span>DrishtiBot AI</span>
                     </div>
                     {currentView === "chatbot" && <Check className="w-3.5 h-3.5 shrink-0" />}
                   </button>
@@ -546,7 +558,7 @@ export default function App() {
                   >
                     <div className="flex items-center gap-3">
                       <Gift className="w-4 h-4 text-brand-warning shrink-0" />
-                      <span>Coins Reward Store</span>
+                      <span>Reward Store</span>
                     </div>
                     {currentView === "rewards" && <Check className="w-3.5 h-3.5 shrink-0" />}
                   </button>
@@ -563,7 +575,7 @@ export default function App() {
                   >
                     <div className="flex items-center gap-3">
                       <User className="w-4 h-4 text-emerald-400" />
-                      <span>Profile Dashboard</span>
+                      <span>My Profile</span>
                     </div>
                     {currentView === "profile" && <Check className="w-3.5 h-3.5 shrink-0" />}
                   </button>
@@ -598,54 +610,8 @@ export default function App() {
       {/* RIGHT SIDE CONTAINER (Header + Content viewport) */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
 
-      {/* MOBILE SEARCH OVERLAY (Full Viewport) */}
-      <AnimatePresence>
-        {isMobileSearchOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="fixed inset-x-0 top-0 bg-[#0B0E14] z-[2000] p-4 flex items-center gap-3 border-b border-[#3B82F6]/30 shadow-2xl"
-          >
-            <div className="relative flex-1">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <Search className="w-4 h-4 text-[#3B82F6]" />
-              </span>
-              <input
-                autoFocus
-                type="text"
-                value={globalSearchQuery}
-                onChange={(e) => {
-                  setGlobalSearchQuery(e.target.value);
-                  if (currentView !== "feed") {
-                    setCurrentView("feed");
-                  }
-                }}
-                placeholder="Search report feed..."
-                className="w-full bg-[#151A23] border border-[#3B82F6]/50 rounded-xl pl-10 pr-10 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/30 shadow-inner"
-              />
-              {globalSearchQuery && (
-                <button
-                  onClick={() => setGlobalSearchQuery("")}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 hover:scale-110 transition-transform p-1"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            <button
-              onClick={() => setIsMobileSearchOpen(false)}
-              className="px-3.5 py-2 text-xs font-bold text-slate-400 hover:text-white bg-[#151A23] border border-slate-800/80 rounded-xl transition-all"
-            >
-              Cancel
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* HEADER NAVBAR */}
-      <header className="sticky top-0 z-[1000] bg-[#0B0E14]/92 backdrop-blur-[12px] shadow-[0_8px_24px_rgba(0,0,0,0.3)] min-h-16 md:min-h-[76px] lg:min-h-[80px] transition-all duration-300 w-full select-none flex items-center py-2 md:py-3">
+      <header className="sticky top-0 z-[1000] bg-[#0B0E14]/70 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.4)] border-b border-white/[0.05] transition-all duration-300 w-full select-none flex items-center">
         {/* Hardware-accelerated Bottom Shimmer Gradient Line */}
         <motion.div 
           className="absolute bottom-0 left-0 right-0 h-[1px] pointer-events-none"
@@ -663,251 +629,218 @@ export default function App() {
           }}
         />
 
-        <div className="max-w-[95%] mx-auto px-4 md:px-6 lg:px-8 w-full flex items-center justify-between gap-4 py-1.5 md:py-2">
-          {/* LEFT SECTION: BRANDING + REPOSITIONED SEARCH & LOCATION */}
-          <div className="flex items-center gap-3 md:gap-4 lg:gap-6 flex-1 min-w-0">
-            {/* Branding with Menu Button */}
-            <motion.div 
-              className="flex items-center gap-2 md:gap-2.5 lg:gap-3 shrink-0"
-              whileHover="hover"
-              whileTap="tap"
-            >
-              {/* Logo Element (Now replaced with three-line Menu icon button) */}
+        <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-8 py-3 lg:py-4 w-full flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
+          
+          {/* ROW 1 (Mobile/Tablet) / LEFT SECTION (Desktop) */}
+          <div className="flex items-center justify-between w-full lg:w-auto shrink-0 order-1">
+            <div className="flex items-center gap-3">
               <motion.button 
                 onClick={() => setIsDrawerOpen(!isDrawerOpen)}
-                className="w-9 h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 rounded-xl bg-gradient-to-br from-[#3B82F6] to-[#1E40AF] flex items-center justify-center text-white shadow-[0_4px_12px_rgba(59,130,246,0.3)] border border-blue-400/20 cursor-pointer"
-                animate={{
-                  scale: [1, 1.08, 1],
-                  boxShadow: [
-                    "0 4px 12px rgba(59,130,246,0.3)",
-                    "0 4px 22px rgba(59,130,246,0.6)",
-                    "0 4px 12px rgba(59,130,246,0.3)"
-                  ]
-                }}
-                transition={{
-                  scale: {
-                    repeat: Infinity,
-                    duration: 2,
-                    ease: "easeInOut"
-                  },
-                  boxShadow: {
-                    repeat: Infinity,
-                    duration: 2,
-                    ease: "easeInOut"
-                  }
-                }}
-                whileHover={{ 
-                  scale: 1.12, 
-                  boxShadow: "0 8px 24px rgba(59, 130, 246, 0.45)" 
-                }}
+                className="w-10 h-10 lg:w-11 lg:h-11 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 flex items-center justify-center text-slate-300 hover:text-white shadow-sm transition-all cursor-pointer group shrink-0"
                 whileTap={{ scale: 0.95 }}
                 title="Open navigation menu"
               >
-                <Menu className="w-5 h-5 md:w-5.5 md:h-5.5 lg:w-6 lg:h-6 text-white stroke-[2.5]" />
+                <Menu className="w-5 h-5 md:w-5.5 md:h-5.5 lg:w-6 lg:h-6 stroke-[2]" />
               </motion.button>
 
-              {/* App Name */}
-              <div 
-                onClick={() => setCurrentView("feed")}
-                className="flex items-center gap-1 font-display tracking-tight text-slate-100 text-sm md:text-base lg:text-[20px] leading-none cursor-pointer"
-              >
-                <span className="hidden sm:inline-block font-semibold group-hover:text-white transition-colors duration-300">
-                  CivicPulse
+              <div onClick={() => setCurrentView("feed")} className="cursor-pointer flex items-center gap-2 group shrink-0">
+                <div className="relative flex items-center justify-center">
+                  <motion.div 
+                    animate={{ opacity: [0.2, 0.4, 0.2] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute inset-0 bg-blue-500/10 blur-sm rounded-full transition-colors"
+                  />
+                  <CivicPulseLogo variant="icon" size={28} animate={true} />
+                </div>
+                <span className="font-extrabold tracking-tight text-white leading-none font-sans text-lg">
+                  CivicPulse AI
                 </span>
-                <span className="font-regular text-[#3B82F6]">
-                  AI
-                </span>
-              </div>
-            </motion.div>
-
-            {/* SEARCH BAR (repositioned next to Civic Pulse AI) */}
-            <div className="hidden md:flex items-center shrink-0">
-              <div className={`w-[200px] lg:w-[320px] xl:w-[420px] h-10 lg:h-11 relative flex items-center rounded-xl border transition-all duration-300 ${
-                isSearchFocused 
-                  ? "bg-[#151A23]/95 border-[#3B82F6] shadow-[0_0_20px_rgba(59,130,246,0.25)] scale-[1.01]" 
-                  : "bg-[#151A23]/70 border-[#3B82F6]/25 hover:border-[#3B82F6]/50"
-              }`}>
-                <span className="absolute left-3.5 flex items-center pointer-events-none">
-                  <Search className={`w-[18px] h-[18px] transition-colors duration-300 ${isSearchFocused ? "text-[#3B82F6]" : "text-slate-400"}`} />
-                </span>
-                <input
-                  id="header-search-input"
-                  type="text"
-                  value={globalSearchQuery}
-                  onFocus={() => setIsSearchFocused(true)}
-                  onBlur={() => setIsSearchFocused(false)}
-                  onChange={(e) => {
-                    setGlobalSearchQuery(e.target.value);
-                    if (currentView !== "feed") {
-                      setCurrentView("feed");
-                    }
-                  }}
-                  placeholder="Search report feed (e.g., potholes, safety)..."
-                  className="w-full h-full bg-transparent pl-10 pr-10 text-xs lg:text-sm text-slate-100 placeholder:text-slate-500/80 focus:outline-none"
-                />
-                {globalSearchQuery && (
-                  <button
-                    onClick={() => setGlobalSearchQuery("")}
-                    className="absolute right-3.5 text-slate-400 hover:text-red-500 transition-colors p-0.5 rounded-full hover:bg-white/5"
-                    title="Clear search"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
               </div>
             </div>
 
-            {/* LOCATION CHIP (repositioned next to Search display) */}
-            <div className="hidden sm:flex items-center shrink-0">
-              <motion.button
-                onClick={handleRefreshHeaderLocation}
-                disabled={isRefreshingHeaderLoc}
-                className="flex flex-col items-start bg-[#151A23]/70 hover:bg-[#151A23]/95 border border-[#3B82F6]/30 hover:border-[#3B82F6]/60 px-4 py-1.5 lg:py-2 rounded-xl transition-all cursor-pointer group disabled:opacity-50 shadow-sm w-[180px] lg:w-[220px]"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                title="Locate Me / Refresh Coordinates (GPS/IP)"
-              >
-                <div className="flex items-center gap-1 w-full justify-between">
-                  <span className="text-[9px] uppercase font-bold text-[#3B82F6] tracking-wider">
-                    LOCATION
-                  </span>
-                  <RotateCw className={`w-3 h-3 text-blue-400 group-hover:text-blue-300 transition-colors shrink-0 ${isRefreshingHeaderLoc ? "animate-spin" : ""}`} />
-                </div>
-                <div className="flex items-center gap-1 mt-0.5 w-full min-w-0">
-                  <MapPin className="w-3.5 h-3.5 text-[#3B82F6] shrink-0" />
-                  <span className="text-[10px] lg:text-xs font-semibold text-[#CBD5E1] truncate w-full text-left">
-                    MY WARD: {currentUser?.location || "Kanpur, Swaroop Nagar"}
-                  </span>
-                </div>
-              </motion.button>
-            </div>
-          </div>
-
-          {/* RIGHT SECTION: LOCATION + USER PROFILE + ACTIONS */}
-          <div className="flex items-center justify-end gap-2.5 sm:gap-3 shrink-0">
-            {/* Mobile Search Standalone Icon */}
-            <button
-              onClick={() => setIsMobileSearchOpen(true)}
-              className="md:hidden w-9 h-9 rounded-xl border border-slate-800 bg-slate-900/80 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
-              title="Search"
-            >
-              <Search className="w-[18px] h-[18px]" />
-            </button>
-
-
-            {/* REPORT ISSUE BUTTON */}
-            {currentUser?.role === "citizen" && (
-              <motion.button
-                onClick={() => setCurrentView("report")}
-                className="hidden sm:flex bg-gradient-to-br from-[#3B82F6] to-[#1E40AF] hover:brightness-110 active:scale-95 text-white px-4 md:px-5 h-10 rounded-xl text-xs md:text-sm font-semibold items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(59,130,246,0.3)] hover:shadow-[0_8px_24px_rgba(59,130,246,0.4)] transition-all cursor-pointer min-w-[110px] md:min-w-[130px]"
-                whileHover={{ y: -2, scale: 1.02 }}
-                whileTap={{ y: 0, scale: 0.98 }}
-              >
-                <PlusCircle className="w-4 h-4 shrink-0" />
-                <span className="hidden md:inline">Report Issue</span>
-                <span className="md:hidden inline">Report</span>
-              </motion.button>
-            )}
-
-            {/* Symmetrical Vertical Separator (Only on Desktop/Tablet) */}
-            <div className="hidden sm:block w-[1px] h-8 bg-slate-800 shrink-0" />
-
-            {/* USER PROFILE SECTION */}
-            <div className="relative shrink-0 flex items-center gap-2">
+            {/* Profile for Mobile/Tablet */}
+            <div className="flex items-center lg:hidden relative shrink-0">
               <button
                 onClick={() => setShowMoreDropdown(!showMoreDropdown)}
-                className="flex items-center gap-2 p-0.5 rounded-xl hover:bg-white/5 transition-all group"
+                className="flex items-center p-1 rounded-full hover:bg-white/[0.05] border border-transparent transition-all group"
                 title="Profile Options"
               >
-                <div className="w-9 h-9 md:w-10 md:h-10 rounded-full border-2 border-blue-500/40 group-hover:border-[#3B82F6] bg-slate-800 flex items-center justify-center overflow-hidden transition-all shadow-[0_2px_8px_rgba(59,130,246,0.2)] group-hover:scale-105">
+                <div className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center overflow-hidden border border-white/10 shadow-sm group-hover:border-[#3B82F6]/50 group-hover:scale-105 transition-all">
                   {currentUser.photoURL ? (
-                    <img 
-                      src={currentUser.photoURL} 
-                      referrerPolicy="no-referrer" 
-                      alt={currentUser.name} 
-                      className="w-full h-full object-cover" 
-                    />
+                    <img src={currentUser.photoURL} referrerPolicy="no-referrer" alt={currentUser.name} className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-white font-bold text-xs uppercase font-display">
                       {currentUser.name ? currentUser.name.split(" ").map(n => n[0]).join("").slice(0, 2) : "US"}
                     </span>
                   )}
                 </div>
-
-                {/* Optional notification pulse */}
-                {notification && (
-                  <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-red-500 border-2 border-[#0B0E14] rounded-full animate-ping" />
-                )}
-
-                {/* User Info (Desktop only) */}
-                <div className="hidden lg:flex flex-col items-start text-left max-w-[110px]">
-                  <span className="text-xs font-semibold text-slate-100 truncate w-full group-hover:text-white transition-colors duration-150">
-                    {currentUser.name ? currentUser.name.split(" ")[0] : "User"}
-                  </span>
-                  <span className="text-[10px] text-slate-400 capitalize leading-none mt-0.5">
-                    {currentUser.role}
-                  </span>
-                </div>
-
-                <ChevronDown className="hidden lg:block w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200 transition-colors" />
               </button>
-
-              {/* Profile Dropdown Menu */}
+              
               <AnimatePresence>
                 {showMoreDropdown && (
                   <>
-                    <div 
-                      className="fixed inset-0 z-40" 
-                      onClick={() => setShowMoreDropdown(false)} 
-                    />
+                    <div className="fixed inset-0 z-40" onClick={() => setShowMoreDropdown(false)} />
                     <motion.div
                       initial={{ opacity: 0, scale: 0.95, y: 5 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: 5 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 top-full w-48 bg-[#111827] border border-slate-800 rounded-xl shadow-2xl p-1.5 z-50 flex flex-col gap-1"
+                      className="absolute right-0 mt-2 top-full w-48 bg-[#111827] border border-slate-800 rounded-xl shadow-2xl p-1.5 z-50 flex flex-col gap-1 origin-top-right"
                     >
                       <div className="px-2.5 py-2 border-b border-slate-800/60 mb-1">
                         <p className="text-[10px] font-black tracking-wider text-slate-500 uppercase">Signed In As</p>
                         <p className="text-xs font-bold text-slate-200 truncate mt-0.5">{currentUser.name}</p>
                         <p className="text-[10px] text-slate-400 truncate">{currentUser.email}</p>
                       </div>
-
-                      <button
-                        onClick={() => {
-                          setCurrentView("profile");
-                          setShowMoreDropdown(false);
-                        }}
-                        className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-white transition-all flex items-center gap-2 cursor-pointer"
-                      >
-                        <User className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>View Profile</span>
+                      <button onClick={() => { setCurrentView("profile"); setShowMoreDropdown(false); }} className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-white transition-all flex items-center gap-2 cursor-pointer">
+                        <User className="w-3.5 h-3.5 text-emerald-400" /><span>View Profile</span>
                       </button>
-
-                      <button
-                        onClick={() => {
-                          handleLogout();
-                          setShowMoreDropdown(false);
-                        }}
-                        className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-all flex items-center gap-2 cursor-pointer border-t border-slate-800/40 mt-1"
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>Sign Out</span>
+                      <button onClick={() => { handleLogout(); setShowMoreDropdown(false); }} className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-all flex items-center gap-2 cursor-pointer border-t border-slate-800/40 mt-1">
+                        <LogOut className="w-3.5 h-3.5" /><span>Sign Out</span>
                       </button>
                     </motion.div>
                   </>
                 )}
               </AnimatePresence>
             </div>
+          </div>
 
-            {/* Hamburger Mobile Menu Toggle Button (Visible on mobile screens) */}
-            <button
-              onClick={() => setIsDrawerOpen(!isDrawerOpen)}
-              className="sm:hidden hidden w-9 h-9 rounded-xl border border-slate-800 bg-slate-900/80 flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer"
-              title="Open Navigation Menu"
+          {/* ROW 2 (Mobile/Tablet) / CENTER SECTION (Desktop) */}
+          <div className="w-full lg:flex-1 order-2 shrink min-w-[200px]">
+            <div className={`relative flex items-center w-full rounded-2xl border transition-all duration-300 ${
+              isSearchFocused 
+                ? "bg-[#1A2230] border-[#3B82F6] shadow-[0_0_24px_rgba(59,130,246,0.25)]" 
+                : "bg-[#111620]/80 border-white/10 hover:border-white/20"
+            }`}>
+              <span className="absolute left-4 flex items-center pointer-events-none">
+                <Search className={`w-5 h-5 transition-colors duration-300 ${isSearchFocused ? "text-[#3B82F6]" : "text-slate-400"}`} />
+              </span>
+              <input
+                id="header-search-input"
+                type="text"
+                value={globalSearchQuery}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
+                onChange={(e) => {
+                  setGlobalSearchQuery(e.target.value);
+                  if (currentView !== "feed") setCurrentView("feed");
+                }}
+                placeholder="Search reports, locations or issues..."
+                className="w-full h-11 lg:h-12 bg-transparent pl-11 pr-10 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
+              />
+              {globalSearchQuery && (
+                <button
+                  onClick={() => setGlobalSearchQuery("")}
+                  className="absolute right-3.5 text-slate-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-white/10"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ROW 3 (Mobile/Tablet) / RIGHT SECTION (Desktop) */}
+          <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 w-full lg:w-auto shrink-0 order-3">
+            
+            {/* Location Chip */}
+            <motion.button
+              onClick={handleRefreshHeaderLocation}
+              disabled={isRefreshingHeaderLoc}
+              whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.06)" }}
+              whileTap={{ scale: 0.98 }}
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 lg:py-2 rounded-xl bg-white/[0.03] border border-white/10 transition-all whitespace-nowrap group disabled:opacity-50 shrink-0"
+              title="Locate Me / Refresh Coordinates"
             >
-              <Menu className="w-5 h-5 stroke-[2.5]" />
-            </button>
+              <MapPin className={`w-3.5 h-3.5 text-[#3B82F6] ${isRefreshingHeaderLoc ? "animate-bounce" : "group-hover:scale-110 transition-transform"}`} />
+              <span className="text-[11px] lg:text-xs font-semibold text-slate-200 max-w-[120px] truncate">
+                {currentUser?.location?.split(',')[0] || "Kanpur"}
+              </span>
+            </motion.button>
+
+            {/* Civic Coins Chip */}
+            <motion.button
+              onClick={() => setCurrentView("rewards")}
+              whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.06)" }}
+              whileTap={{ scale: 0.98 }}
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 lg:py-2 rounded-xl bg-white/[0.03] border border-white/10 transition-all whitespace-nowrap group shrink-0"
+              title="Civic Coins"
+            >
+              <Coins className="w-4 h-4 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)] group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] lg:text-xs font-bold text-amber-400">
+                {currentUser?.civicScore || 0}
+              </span>
+            </motion.button>
+
+            {/* Report Issue Button */}
+            {currentUser?.role === "citizen" && (
+              <motion.button
+                onClick={() => setCurrentView("report")}
+                whileHover={{ y: -1, scale: 1.02 }}
+                whileTap={{ y: 0, scale: 0.98 }}
+                className="flex flex-1 sm:flex-none items-center justify-center gap-1.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white px-3 lg:px-4 py-1.5 lg:py-2 h-[32px] lg:h-[36px] rounded-xl text-[11px] lg:text-xs font-semibold shadow-[0_4px_12px_rgba(59,130,246,0.3)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.4)] transition-all whitespace-nowrap shrink-0"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Report Issue</span>
+                <span className="sm:hidden">Report</span>
+              </motion.button>
+            )}
+
+            {/* Profile for Desktop */}
+            <div className="hidden lg:flex items-center relative ml-1 shrink-0">
+              <div className="w-[1px] h-8 bg-white/10 shrink-0 mr-3" />
+              <button
+                onClick={() => setShowMoreDropdown(!showMoreDropdown)}
+                className="flex items-center gap-2 p-1 pr-2 rounded-full hover:bg-white/[0.05] border border-transparent hover:border-white/[0.05] transition-all group"
+                title="Profile Options"
+              >
+                <div className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center overflow-hidden border border-white/10 shadow-sm group-hover:border-[#3B82F6]/50 group-hover:scale-105 transition-all">
+                  {currentUser.photoURL ? (
+                    <img src={currentUser.photoURL} referrerPolicy="no-referrer" alt={currentUser.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-white font-bold text-xs uppercase font-display">
+                      {currentUser.name ? currentUser.name.split(" ").map(n => n[0]).join("").slice(0, 2) : "US"}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col items-start text-left max-w-[120px]">
+                  <span className="text-xs font-semibold text-slate-100 truncate w-full group-hover:text-white transition-colors">
+                    {currentUser.name ? currentUser.name.split(" ")[0] : "User"}
+                  </span>
+                  <span className="text-[10px] text-slate-400 capitalize leading-none mt-0.5">
+                    {currentUser.role}
+                  </span>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200 transition-colors ml-0.5" />
+              </button>
+              
+              <AnimatePresence>
+                {showMoreDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowMoreDropdown(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 5 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 top-full w-48 bg-[#111827] border border-slate-800 rounded-xl shadow-2xl p-1.5 z-50 flex flex-col gap-1 origin-top-right"
+                    >
+                      <div className="px-2.5 py-2 border-b border-slate-800/60 mb-1">
+                        <p className="text-[10px] font-black tracking-wider text-slate-500 uppercase">Signed In As</p>
+                        <p className="text-xs font-bold text-slate-200 truncate mt-0.5">{currentUser.name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{currentUser.email}</p>
+                      </div>
+                      <button onClick={() => { setCurrentView("profile"); setShowMoreDropdown(false); }} className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-white transition-all flex items-center gap-2 cursor-pointer">
+                        <User className="w-3.5 h-3.5 text-emerald-400" /><span>View Profile</span>
+                      </button>
+                      <button onClick={() => { handleLogout(); setShowMoreDropdown(false); }} className="w-full text-left px-2.5 py-2 rounded-lg text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-all flex items-center gap-2 cursor-pointer border-t border-slate-800/40 mt-1">
+                        <LogOut className="w-3.5 h-3.5" /><span>Sign Out</span>
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </header>
