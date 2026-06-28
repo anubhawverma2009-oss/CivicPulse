@@ -10,12 +10,14 @@ import ProfileTabs from "./components/ProfileTabs";
 import CreateIssueModal from "./components/CreateIssueModal";
 import GeoMap from "./components/GeoMap";
 import RewardsShop from "./components/RewardsShop";
+import ImpactAndMap from "./components/ImpactAndMap";
 import { INITIAL_ISSUES } from "./lib/data";
 import { CivicAuth, CivicDatabase } from "./firebase/config";
 import { 
   Building, LogOut, Sparkles, MessageSquare, AlertTriangle, User, PlusCircle, 
   MapPin, HelpCircle, Bell, Volume2, ShieldCheck, CheckCircle, Compass, Gift,
-  MoreHorizontal, RotateCw, Check, ChevronDown, Menu, X, Search, Map, Coins
+  MoreHorizontal, RotateCw, Check, ChevronDown, Menu, X, Search, Map, Coins,
+  Activity
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { findClosestLocation, detectLocationByIP, detectLocationByGPS } from "./utils/location";
@@ -33,9 +35,10 @@ export default function App() {
   });
 
   const [issues, setIssues] = useState<IssueReport[]>([]);
-  const [currentView, setCurrentView] = useState<"feed" | "leaderboard" | "chatbot" | "profile" | "map" | "rewards" | "report">("feed");
+  const [currentView, setCurrentView] = useState<"feed" | "leaderboard" | "chatbot" | "profile" | "map" | "rewards" | "report" | "impact">("chatbot");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [showMoreDropdown, setShowMoreDropdown] = useState(false);
   const [isRefreshingHeaderLoc, setIsRefreshingHeaderLoc] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -44,6 +47,21 @@ export default function App() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showHeaderActions, setShowHeaderActions] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Custom Location States
+  const [sessionLocation, setSessionLocation] = useState<string | null>(() => sessionStorage.getItem("civicpulse_session_loc"));
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [showChangeLocationModal, setShowChangeLocationModal] = useState(false);
+  const [changeLocationQuery, setChangeLocationQuery] = useState("");
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+
+  useEffect(() => {
+    if (sessionLocation) {
+      sessionStorage.setItem("civicpulse_session_loc", sessionLocation);
+    } else {
+      sessionStorage.removeItem("civicpulse_session_loc");
+    }
+  }, [sessionLocation]);
 
   // Deep linking and shared profile states
   const [sharedProfileId, setSharedProfileId] = useState<string | null>(null);
@@ -113,6 +131,7 @@ export default function App() {
   const handleRefreshHeaderLocation = async () => {
     if (!currentUser) return;
     setIsRefreshingHeaderLoc(true);
+    setSessionLocation(null); // clear session override
     try {
       // 1. Try real-time GPS coords
       const gpsLoc = await detectLocationByGPS(3500);
@@ -136,6 +155,30 @@ export default function App() {
       showToast(`Detection failed. Current Pin: ${currentUser.location}`);
     } finally {
       setIsRefreshingHeaderLoc(false);
+    }
+  };
+
+  const handleSearchLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!changeLocationQuery.trim()) return;
+    setIsSearchingLocation(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(changeLocationQuery)}`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const nameParts = data[0].display_name.split(',');
+        const locName = nameParts[0].trim();
+        setSessionLocation(locName);
+        setShowChangeLocationModal(false);
+        setChangeLocationQuery("");
+        showToast(`📍 Location updated to ${locName}`);
+      } else {
+        showToast("Location not found. Try another search.");
+      }
+    } catch (err) {
+      showToast("Error searching location.");
+    } finally {
+      setIsSearchingLocation(false);
     }
   };
 
@@ -169,6 +212,14 @@ export default function App() {
       unsubscribeIssues();
     };
   }, [currentUser]);
+
+  const activeLocation = sessionLocation || currentUser?.location;
+
+  const locationFilteredIssues = issues.filter(issue => {
+    if (!activeLocation) return true;
+    const searchLoc = activeLocation.split(',')[0].toLowerCase();
+    return issue.location.toLowerCase().includes(searchLoc);
+  });
 
   const showToast = (message: string) => {
     setNotification(message);
@@ -280,8 +331,9 @@ export default function App() {
 
   // 3. Like Report
   const handleLike = async (issueId: string) => {
-    await CivicDatabase.likeIssue(issueId);
-    showToast("Liked report!");
+    if (!currentUser) return;
+    await CivicDatabase.likeIssue(issueId, currentUser.uid);
+    // Don't show toast for every like to avoid spamming the user, or show a smart toast if needed.
   };
 
   // 4. Save Issue to bookmarks
@@ -428,6 +480,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary flex flex-row w-full relative overflow-hidden">
+      
       {/* LEFT SIDEBAR MENU (ChatGPT/Google Workspace Style) */}
       <AnimatePresence initial={false}>
         {isDrawerOpen && (
@@ -505,7 +558,7 @@ export default function App() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <AlertTriangle className="w-4 h-4 text-[#F59E0B]" />
+                      <Activity className="w-5 h-5 text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]" />
                       <span>Priority Issues</span>
                     </div>
                     {currentView === "leaderboard" && <Check className="w-3.5 h-3.5 shrink-0" />}
@@ -527,6 +580,23 @@ export default function App() {
                       <span>Issue Map</span>
                     </div>
                     {currentView === "map" && <Check className="w-3.5 h-3.5 shrink-0" />}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setCurrentView("impact");
+                    }}
+                    className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                      currentView === "impact"
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                        : "text-[#94A3B8] hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Compass className="w-4 h-4 text-brand-primary" />
+                      <span>Impact Room</span>
+                    </div>
+                    {currentView === "impact" && <Check className="w-3.5 h-3.5 shrink-0" />}
                   </button>
 
                   <button
@@ -743,20 +813,121 @@ export default function App() {
           {/* ROW 3 (Mobile/Tablet) / RIGHT SECTION (Desktop) */}
           <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 w-full lg:w-auto shrink-0 order-3">
             
+            <div className="relative">
+              <motion.div
+                onClick={() => setShowNotifications(!showNotifications)}
+                whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.06)" }}
+                whileTap={{ scale: 0.98 }}
+                className={`p-2.5 rounded-xl border border-white/10 group cursor-pointer transition-all flex items-center justify-center ${
+                  showNotifications ? "bg-white/[0.08]" : "bg-white/[0.03] hover:bg-white/[0.08]"
+                }`}
+                title="Notifications"
+              >
+                <Bell className={`w-4 h-4 lg:w-5 lg:h-5 text-[#3B82F6] ${showNotifications ? "" : "animate-bounce"}`} />
+              </motion.div>
+
+              <AnimatePresence>
+                {showNotifications && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: 10, x: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 10, x: 20 }}
+                      className="absolute right-0 top-full mt-3 w-[300px] bg-[#0F172A] border border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-[2000] flex flex-col"
+                    >
+                      <div className="p-4 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between">
+                        <h3 className="text-[11px] font-black uppercase tracking-wider text-white">Civic Intelligence Center</h3>
+                        <span className="text-[9px] font-bold text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded">3 NEW</span>
+                      </div>
+                      
+                      <div className="max-h-[350px] overflow-y-auto scrollbar-thin">
+                        {[
+                          { title: "Resolution Verified", desc: "Your 'Hazardous Pothole' report in Sigra was resolved and verified by 15 neighbors.", time: "2m ago", type: "success" },
+                          { title: "Trending Issue", desc: "A 'Non-Functional Streetlight' in Orderly Bazar has gained 25 votes. AI routed to Dept.", time: "1h ago", type: "warning" },
+                          { title: "Reward Unlocked", desc: "You earned the 'Truth Seeker' badge for verifying authentic reports!", time: "5h ago", type: "reward" }
+                        ].map((notif, i) => (
+                          <div key={i} className="p-4 border-b border-slate-800/40 hover:bg-white/[0.02] transition-colors cursor-pointer group">
+                            <div className="flex justify-between items-start mb-1">
+                              <h4 className="text-[10px] font-bold text-slate-100 group-hover:text-brand-primary transition-colors">{notif.title}</h4>
+                              <span className="text-[8px] text-slate-500 font-medium">{notif.time}</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 leading-relaxed font-sans">{notif.desc}</p>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <button className="w-full py-3 text-[9px] font-bold uppercase tracking-widest text-slate-500 hover:text-white hover:bg-white/[0.02] transition-all">
+                        Dismiss All Alerts
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Location Chip */}
-            <motion.button
-              onClick={handleRefreshHeaderLocation}
-              disabled={isRefreshingHeaderLoc}
-              whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.06)" }}
-              whileTap={{ scale: 0.98 }}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 lg:py-2 rounded-xl bg-white/[0.03] border border-white/10 transition-all whitespace-nowrap group disabled:opacity-50 shrink-0"
-              title="Locate Me / Refresh Coordinates"
-            >
-              <MapPin className={`w-3.5 h-3.5 text-[#3B82F6] ${isRefreshingHeaderLoc ? "animate-bounce" : "group-hover:scale-110 transition-transform"}`} />
-              <span className="text-[11px] lg:text-xs font-semibold text-slate-200 max-w-[120px] truncate">
-                {currentUser?.location?.split(',')[0] || "Kanpur"}
-              </span>
-            </motion.button>
+            <div className="relative">
+              <motion.button
+                onClick={() => setShowLocationDropdown(!showLocationDropdown)}
+                disabled={isRefreshingHeaderLoc}
+                whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.06)" }}
+                whileTap={{ scale: 0.98 }}
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 lg:py-2 rounded-xl bg-white/[0.03] border border-white/10 transition-all whitespace-nowrap group disabled:opacity-50 shrink-0"
+                title="Location Menu"
+              >
+                <MapPin className={`w-3.5 h-3.5 text-[#3B82F6] ${isRefreshingHeaderLoc ? "animate-bounce" : "group-hover:scale-110 transition-transform"}`} />
+                <span className="text-[11px] lg:text-xs font-semibold text-slate-200 max-w-[120px] truncate">
+                  {activeLocation ? activeLocation.split(',')[0] : "Kanpur"}
+                </span>
+                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${showLocationDropdown ? "rotate-180" : ""}`} />
+              </motion.button>
+
+              <AnimatePresence>
+                {showLocationDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute top-full right-0 sm:left-0 mt-2 w-56 bg-slate-900 border border-white/10 rounded-xl shadow-xl overflow-hidden z-[100]"
+                  >
+                    <button
+                      onClick={() => {
+                        setShowLocationDropdown(false);
+                        handleRefreshHeaderLocation();
+                      }}
+                      className="w-full text-left px-4 py-3 text-sm text-slate-200 hover:bg-white/5 transition-colors flex items-center gap-2"
+                    >
+                      <MapPin className="w-4 h-4 text-blue-400" />
+                      Refresh Current Location
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowLocationDropdown(false);
+                        setShowChangeLocationModal(true);
+                      }}
+                      className="w-full text-left px-4 py-3 text-sm text-slate-200 hover:bg-white/5 transition-colors flex items-center gap-2 border-t border-white/5"
+                    >
+                      <Map className="w-4 h-4 text-emerald-400" />
+                      Change Location
+                    </button>
+                    {sessionLocation && sessionLocation !== currentUser?.location && (
+                       <button
+                        onClick={() => {
+                          setShowLocationDropdown(false);
+                          setSessionLocation(null); // Back to profile GPS
+                        }}
+                        className="w-full text-left px-4 py-3 text-sm text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors flex items-center gap-2 border-t border-white/5"
+                      >
+                        <RotateCw className="w-4 h-4" />
+                        Reset to Profile Location
+                      </button>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Civic Coins Chip */}
             <motion.button
@@ -877,7 +1048,7 @@ export default function App() {
             >
               {currentView === "feed" && (
                 <IssueFeed
-                  issues={issues}
+                  issues={locationFilteredIssues}
                   currentUser={currentUser}
                   onVote={handleVote}
                   onVoteResolution={handleVoteResolution}
@@ -901,7 +1072,7 @@ export default function App() {
 
               {currentView === "map" && (
                 <GeoMap
-                  issues={issues}
+                  issues={locationFilteredIssues}
                   currentUser={currentUser}
                   onSelectIssue={(issueId) => {
                     // When user clicks issue on map, show it in feed
@@ -916,7 +1087,7 @@ export default function App() {
 
               {currentView === "rewards" && (
                 <RewardsShop
-                  issues={issues}
+                  issues={locationFilteredIssues}
                   currentUser={currentUser}
                   onRedeemReward={handleRedeemReward}
                   onSaveIssue={handleSaveIssue}
@@ -934,8 +1105,9 @@ export default function App() {
 
               {currentView === "leaderboard" && (
                 <Leaderboard
-                  issues={issues}
+                  issues={locationFilteredIssues}
                   currentUser={currentUser}
+                  activeLocation={activeLocation}
                   onSaveIssue={handleSaveIssue}
                   onLike={handleLike}
                   onSelectIssue={(issueId) => {
@@ -949,16 +1121,34 @@ export default function App() {
               )}
 
               {currentView === "chatbot" && (
-                <div className="max-w-3xl mx-auto w-full">
-                  <DrishtiBot currentUser={currentUser} issues={issues} />
+                <div className="w-full h-full min-h-[80vh]">
+                  <DrishtiBot 
+                    currentUser={currentUser} 
+                    issues={locationFilteredIssues} 
+                    onNavigate={setCurrentView}
+                  />
                 </div>
+              )}
+
+              {currentView === "impact" && (
+                <ImpactAndMap 
+                  issues={locationFilteredIssues} 
+                  currentUser={currentUser!}
+                  onSelectIssue={(issueId) => {
+                    setCurrentView("feed");
+                    setTimeout(() => {
+                      const el = document.getElementById(issueId);
+                      if (el) el.scrollIntoView({ behavior: "smooth" });
+                    }, 100);
+                  }}
+                />
               )}
 
               {currentView === "profile" && (
                 <>
                   <UserProfileView
                     user={sharedProfile || currentUser!}
-                    issues={issues}
+                    issues={locationFilteredIssues}
                     onTriggerFix={handleTriggerFix}
                     onUpdateUser={handleUpdateUser}
                     loggedInUser={currentUser}
@@ -968,7 +1158,7 @@ export default function App() {
                   />
                   <ProfileTabs
                     user={sharedProfile || currentUser!}
-                    issues={issues}
+                    issues={locationFilteredIssues}
                     currentUser={currentUser!}
                     onVote={handleVote}
                     onVoteResolution={handleVoteResolution}
@@ -997,6 +1187,83 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {showChangeLocationModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl relative"
+            >
+              <button
+                onClick={() => setShowChangeLocationModal(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <Map className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">Change Location</h2>
+                  <p className="text-xs text-slate-400">Search to see issues in a different area.</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSearchLocation} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    Search Location
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input
+                      type="text"
+                      value={changeLocationQuery}
+                      onChange={(e) => setChangeLocationQuery(e.target.value)}
+                      placeholder="e.g. Kanpur, Lucknow, Varanasi, Delhi"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500/50 focus:bg-white/10 transition-all"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowChangeLocationModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSearchingLocation || !changeLocationQuery.trim()}
+                    className="px-5 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:hover:bg-blue-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center gap-2"
+                  >
+                    {isSearchingLocation ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Searching...
+                      </>
+                    ) : (
+                      "Update Location"
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* TOAST SYSTEM */}
       <AnimatePresence>
         {notification && (
@@ -1015,8 +1282,6 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
-
-
     </div>
   );
 }

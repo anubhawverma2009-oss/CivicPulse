@@ -53,6 +53,16 @@ export interface UserProfile {
   // Gamification reward shop expansion
   civicCoins?: number;
   redeemedRewards?: string[];
+  transactions?: Transaction[];
+}
+
+export interface Transaction {
+  id: string;
+  type: "earn" | "redeem";
+  amount: number;
+  description: string;
+  timestamp: string;
+  status?: "completed" | "pending";
 }
 
 export interface ResolutionResponse {
@@ -111,6 +121,7 @@ export interface IssueReport {
   status: IssueStatus;
   createdAt: string;
   updatedAt: string;
+  resolvedAt?: string;
   pollVotes: {
     yes: number;
     no: number;
@@ -121,6 +132,7 @@ export interface IssueReport {
   };
   votedUserIds?: { [userId: string]: "yes" | "no" };
   votedResolutionUserIds?: { [userId: string]: "solved" | "pending" };
+  likedUserIds?: string[];
   responses: ResolutionResponse[];
   comments: Comment[];
   likes: number;
@@ -132,5 +144,112 @@ export interface IssueReport {
   // High fidelity community hero expansions
   peerEvidence?: PeerEvidence[];
   triage?: TriageDetails;
+}
+
+export interface CivicCalculations {
+  transactions: Transaction[];
+  totalEarned: number;
+  totalRedeemed: number;
+  currentCoins: number;
+  civicScore: number;
+}
+
+export function getUserTransactions(user: UserProfile): Transaction[] {
+  if (user.transactions && user.transactions.length > 0) {
+    return user.transactions;
+  }
+  
+  // Fallback / Initial transactions based on current score and redeemed rewards
+  const score = user.civicScore || 0;
+  
+  // Let's build a set of transactions
+  const tx: Transaction[] = [];
+  
+  if (score > 0) {
+    if (score <= 100) {
+      tx.push({
+        id: "init-1",
+        type: "earn",
+        amount: score,
+        description: "Initial Civic Contributions",
+        timestamp: new Date(Date.now() - 3600000 * 24).toISOString(),
+        status: "completed"
+      });
+    } else {
+      let remaining = score;
+      const parts = [
+        { desc: "Hazardous Pothole Reported", amt: 20 },
+        { desc: "Streetlight Report Verified", amt: 50 },
+        { desc: "Illegal Dumping Site Resolved", amt: 100 },
+        { desc: "Community Landmark Resolution Bonus", amt: 1000 }
+      ];
+      
+      parts.forEach((p, idx) => {
+        if (remaining >= p.amt) {
+          tx.push({
+            id: `init-${idx}`,
+            type: "earn",
+            amount: p.amt,
+            description: p.desc,
+            timestamp: new Date(Date.now() - 3600000 * (48 - idx * 8)).toISOString(),
+            status: "completed"
+          });
+          remaining -= p.amt;
+        }
+      });
+      
+      if (remaining > 0) {
+        tx.push({
+          id: "init-rest",
+          type: "earn",
+          amount: remaining,
+          description: "Civic Engagement Activities",
+          timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+          status: "completed"
+        });
+      }
+    }
+  } else {
+    tx.push({
+      id: "init-zero",
+      type: "earn",
+      amount: 25,
+      description: "Onboarding Welcome Bonus",
+      timestamp: new Date().toISOString(),
+      status: "completed"
+    });
+  }
+  
+  // Add redeemed transactions if any
+  if (user.redeemedRewards && user.redeemedRewards.length > 0) {
+    user.redeemedRewards.forEach((rId, idx) => {
+      tx.push({
+        id: `redeem-${rId}-${idx}`,
+        type: "redeem",
+        amount: 150, // standard reward cost
+        description: `${rId.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Claimed`,
+        timestamp: new Date(Date.now() - 3600000 * (12 - idx)).toISOString(),
+        status: "completed"
+      });
+    });
+  }
+  
+  return tx;
+}
+
+export function computeCivicStats(user: UserProfile): CivicCalculations {
+  const transactions = getUserTransactions(user);
+  const totalEarned = transactions.filter(t => t.type === 'earn').reduce((acc, t) => acc + t.amount, 0);
+  const totalRedeemed = transactions.filter(t => t.type === 'redeem').reduce((acc, t) => acc + t.amount, 0);
+  const currentCoins = totalEarned - totalRedeemed;
+  const civicScore = totalEarned; // Lifetime Contribution
+  
+  return {
+    transactions,
+    totalEarned,
+    totalRedeemed,
+    currentCoins,
+    civicScore
+  };
 }
 

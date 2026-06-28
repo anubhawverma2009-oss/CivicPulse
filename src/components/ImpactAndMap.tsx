@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { IssueReport, UserProfile } from "../types";
-import { Map, TrendingUp, AlertTriangle, Shield, CheckCircle, BarChart2, Info, Compass, HelpCircle, ShieldCheck } from "lucide-react";
+import { Map, AlertTriangle, Shield, BarChart2, Info, Compass, HelpCircle, ShieldCheck } from "lucide-react";
 import { CATEGORIES } from "../lib/data";
 
 interface ImpactAndMapProps {
@@ -23,7 +23,7 @@ interface PredictionData {
   summaryAnalysis: string;
 }
 
-export default function ImpactAndMap({ issues, currentUser, onSelectIssue }: ImpactAndMapProps) {
+export default function ImpactAndMap({ issues, onSelectIssue }: ImpactAndMapProps) {
   const [activeTab, setActiveTab] = useState<"map" | "budget" | "predictions">("map");
   const [selectedWard, setSelectedWard] = useState<string>("All");
   const [predictions, setPredictions] = useState<PredictionData | null>(null);
@@ -199,7 +199,6 @@ export default function ImpactAndMap({ issues, currentUser, onSelectIssue }: Imp
                 {/* Ward Polygons */}
                 {wards.map((ward) => {
                   const isSelected = selectedWard === ward.id;
-                  const isCritical = ward.fragility > 60;
                   const strokeColor = isSelected ? "#8B5CF6" : "rgba(139, 92, 246, 0.15)";
                   const fillOpacity = isSelected ? "0.35" : "0.15";
                   

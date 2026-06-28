@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { IssueReport, UserProfile } from "../types";
 import { 
   AlertTriangle, CheckCircle2, Clock, ThumbsUp, MessageSquare, Share2, 
-  Bookmark, Send, AlertOctagon, HelpCircle, Shield, Twitter, Check, Sparkles
+  Bookmark, HelpCircle, Shield, Twitter, Check, Sparkles
 } from "lucide-react";
 import { SEVERITY_COLORS, CATEGORIES } from "../lib/data";
 import { motion, AnimatePresence } from "motion/react";
@@ -56,10 +56,8 @@ export default function IssueCard({
 
   const totalResVotes = issue.resolutionVotes.solved + issue.resolutionVotes.pending;
   const solvedPercent = totalResVotes > 0 ? Math.round((issue.resolutionVotes.solved / totalResVotes) * 100) : 0;
-  const hasVotedRes = issue.votedResolutionUserIds && currentUser.uid in issue.votedResolutionUserIds;
   const userResChoice = issue.votedResolutionUserIds ? issue.votedResolutionUserIds[currentUser.uid] : null;
 
-  const isUserAuthor = issue.authorId === currentUser.uid;
   const isSaved = currentUser.savedIssues && currentUser.savedIssues.includes(issue.id);
 
   const handleShare = (type: "twitter" | "whatsapp") => {
@@ -359,9 +357,13 @@ export default function IssueCard({
           <div className="flex gap-3">
             <button 
               onClick={() => onLike(issue.id)}
-              className="flex items-center gap-1 text-text-secondary hover:text-brand-primary transition-colors cursor-pointer"
+              className={`flex items-center gap-1 transition-colors cursor-pointer ${
+                issue.likedUserIds?.includes(currentUser.uid)
+                  ? "text-brand-primary"
+                  : "text-text-secondary hover:text-brand-primary"
+              }`}
             >
-              <ThumbsUp className="w-3.5 h-3.5" />
+              <ThumbsUp className={`w-3.5 h-3.5 ${issue.likedUserIds?.includes(currentUser.uid) ? "fill-current" : ""}`} />
               <span>{issue.likes || 0}</span>
             </button>
             <button 
@@ -415,7 +417,7 @@ export default function IssueCard({
                 isSaved ? "text-brand-warning bg-brand-warning/10" : "hover:bg-brand-warning/10 text-text-secondary hover:text-brand-warning"
               }`}
             >
-              <Bookmark className="w-3.5 h-3.5" />
+              <Bookmark className={`w-3.5 h-3.5 ${isSaved ? "fill-current" : ""}`} />
             </button>
           </div>
         </div>

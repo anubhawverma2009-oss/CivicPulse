@@ -26,12 +26,11 @@ export const DEPARTMENTS = [
 ];
 
 export const INITIAL_BADGES: Badge[] = [
-  { id: "first_reporter", name: "First Reporter", description: "Earned by reporting your first civic issue", icon: "📢", locked: false },
-  { id: "guard", name: "Neighborhood Guard", description: "Earned by verifying 5 local issues", icon: "🛡️", locked: false },
-  { id: "truth_seeker", name: "Truth Seeker", description: "Earned by voting on AI-verified real issues", icon: "🔍", locked: false },
-  { id: "landmark", name: "Landmark Maker", description: "Reported an issue that led to a structural fix", icon: "🏗️", locked: false },
-  { id: "protector", name: "Ward Protector", description: "Verified 5 resolution completions", icon: "⭐", locked: true },
-  { id: "champion", name: "City Champion", description: "Accumulate 500+ Civic Points", icon: "🏆", locked: true }
+  { id: "community_hero", name: "Community Hero", description: "Top 1% contributor in citywide engagement", icon: "💎", locked: false },
+  { id: "problem_solver", name: "Problem Solver", description: "Reported 10+ issues that reached full resolution", icon: "🛠️", locked: false },
+  { id: "neighbor_guard", name: "Neighborhood Guardian", description: "Verified 20+ reports in your local ward", icon: "🛡️", locked: false },
+  { id: "eco_champion", name: "Eco Champion", description: "Highly active in Garbage & Sanitation reports", icon: "🌱", locked: false },
+  { id: "road_advocate", name: "Road Safety Advocate", description: "Verified hazardous road conditions across 5 wards", icon: "🛣️", locked: true }
 ];
 
 export const SEVERITY_COLORS: { [key: number]: string } = {

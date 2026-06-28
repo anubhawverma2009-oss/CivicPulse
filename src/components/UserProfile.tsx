@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { UserProfile as UserProfileType, IssueReport } from "../types";
 import { 
-  User, Star, MapPin, ClipboardList, Flame, Edit2, Share2, 
-  Clipboard, Check, Flag, Bookmark, BookmarkCheck, HelpCircle, 
-  ArrowLeft, Info, RefreshCw, ChevronDown, CheckCircle, AlertCircle, 
-  Shield, FileText, Loader2, Navigation, Camera, Upload, AlertTriangle
+  Star, MapPin, Edit2, Share2, 
+  Check, Flag, Bookmark, BookmarkCheck, 
+  ArrowLeft, Info, RefreshCw, ChevronDown, CheckCircle, 
+  Shield, FileText, Loader2, Navigation, AlertTriangle, Camera
 } from "lucide-react";
 import ProfileSettings from "./ProfileSettings";
 
@@ -21,13 +21,10 @@ interface UserProfileProps {
 
 export default function UserProfile({ 
   user, 
-  issues, 
-  onTriggerFix,
   onUpdateUser,
   loggedInUser,
   isViewingShared,
-  onBackToOwnProfile,
-  onVote
+  onBackToOwnProfile
 }: UserProfileProps) {
   const isCitizen = user.role === "citizen";
   const isOwnProfile = !loggedInUser || loggedInUser.uid === user.uid;
@@ -198,7 +195,6 @@ export default function UserProfile({
       "[COMPLETE] Document successfully verified! Local status updated."
     ];
 
-    let currentLogIndex = 0;
     const interval = setInterval(() => {
       setScanProgress((prev) => {
         const next = prev + 5;

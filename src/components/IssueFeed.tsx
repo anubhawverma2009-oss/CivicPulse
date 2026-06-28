@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { IssueReport, UserProfile } from "../types";
-import { AlertOctagon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { CATEGORIES } from "../lib/data";
 import IssueCard from "./IssueCard";
@@ -39,7 +38,6 @@ export default function IssueFeed({
   const [localSearchQuery, setLocalSearchQuery] = useState("");
 
   const activeSearchQuery = externalSearchQuery !== undefined ? externalSearchQuery : localSearchQuery;
-  const activeSetSearchQuery = externalSetSearchQuery !== undefined ? externalSetSearchQuery : setLocalSearchQuery;
 
   // Filter issues
   const filteredIssues = issues.filter(issue => {
@@ -141,7 +139,7 @@ export default function IssueFeed({
                 </div>
                 <h3 className="text-lg font-bold">No Issues Found</h3>
                 <p className="text-sm text-text-muted mt-1 px-4">
-                  No civic complaints match the active filters in this locality. Report a new issue to alert municipal engineers!
+                  No civic reports found in this area.
                 </p>
               </motion.div>
             ) : (

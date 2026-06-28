@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { UserProfile as UserProfileType } from "../types";
 import { 
-  User, MapPin, Edit2, Shield, FileText, Loader2, Navigation, 
-  Camera, Check, CheckCircle, AlertTriangle, RefreshCw, Info,
-  ChevronRight, ArrowLeft, Save, Sparkles, Trash2, HelpCircle,
-  FileSpreadsheet, ClipboardCheck, AlertCircle, RefreshCcw
+  Shield, Loader2, Navigation, 
+  Camera, CheckCircle, AlertTriangle, RefreshCw, Info,
+  ArrowLeft, Save, Sparkles, Trash2,
+  FileSpreadsheet, ClipboardCheck, AlertCircle
 } from "lucide-react";
 
 interface ProfileSettingsProps {
@@ -189,7 +189,6 @@ export default function ProfileSettings({ user, onUpdateUser, onClose }: Profile
     setVerificationError(null);
     setScanLogs(["[SCANNER] OCR scanning engine rebooting..."]);
 
-    const finalDocName = docName === "Custom Identity" ? (customDocType || "Custom ID") : docName;
     const finalZoneName = selectedZone === "Custom Zone (Add manually)" ? (customZone || "Custom Region") : selectedZone;
 
     const logs = [
@@ -202,7 +201,6 @@ export default function ProfileSettings({ user, onUpdateUser, onClose }: Profile
       "[COMPLETE] Scan matches credentials! ID document fully authenticated."
     ];
 
-    let currentStep = 0;
     const interval = setInterval(() => {
       setScanProgress((prev) => {
         const next = prev + 10;

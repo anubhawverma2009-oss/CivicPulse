@@ -26,26 +26,54 @@ function getGeminiClient() {
   return aiClient;
 }
 
-// Robust retry wrapper to handle transient 503 or quota limit errors
-async function callGeminiWithRetry<T>(fn: () => Promise<T>, retries = 3, delayMs = 1000): Promise<T> {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      return await fn();
-    } catch (err: any) {
-      // If it's a quota error (429), don't retry, just fail immediately to trigger fallback
-      if (err?.status === 429 || err?.code === 429) {
-        console.warn("Gemini API quota exceeded (429). Triggering immediate fallback.");
-        throw err;
+// Robust retry wrapper to handle transient errors and model fallbacks
+async function generateContentWithFallback(ai: any, params: any, models: string[] = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-pro", "gemini-1.5-pro"], retries = 3, delayMs = 1500) {
+  let lastError: any = null;
+  for (const model of models) {
+    let modelDelayMs = delayMs;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const req = { ...params, model };
+        return await ai.models.generateContent(req);
+      } catch (err: any) {
+        lastError = err;
+        
+        // Extract status, code and message comprehensively
+        const errStatus = err?.status || err?.error?.status || "";
+        const errCode = err?.code || err?.error?.code || 0;
+        const errMsg = err?.message || err?.error?.message || "";
+        const errJson = err && typeof err === 'object' ? JSON.stringify(err) : "";
+        
+        const isTransient = 
+          errStatus === 'UNAVAILABLE' || 
+          errStatus === 'RESOURCE_EXHAUSTED' || 
+          errCode === 429 || 
+          errCode === 503 ||
+          errMsg.includes("503") || 
+          errMsg.includes("429") || 
+          errMsg.includes("UNAVAILABLE") || 
+          errMsg.includes("RESOURCE_EXHAUSTED") ||
+          errJson.includes("503") || 
+          errJson.includes("429") || 
+          errJson.includes("UNAVAILABLE") || 
+          errJson.includes("RESOURCE_EXHAUSTED");
+
+        if (isTransient) {
+          console.warn(`Model ${model} unavailable/quota (status: ${errStatus}, code: ${errCode}). Switching model immediately...`);
+          break; // Switch to the next model immediately
+        }
+        
+        if (attempt === retries) {
+          break; // Switch to next model if out of retries
+        }
+        
+        console.warn(`Gemini call failed (model ${model}, attempt ${attempt}/${retries}): ${errMsg}. Retrying in ${modelDelayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, modelDelayMs));
+        modelDelayMs *= 2;
       }
-      if (attempt === retries) {
-        throw err;
-      }
-      console.warn(`Gemini call failed (attempt ${attempt}/${retries}): ${err?.message || err}. Retrying in ${delayMs}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-      delayMs *= 2; // Increased backoff
     }
   }
-  throw new Error("Retries exhausted");
+  throw lastError || new Error("All models failed");
 }
 
 async function startServer() {
@@ -137,9 +165,7 @@ Return ONLY a valid JSON object matching the requested schema. Do not wrap in ma
 
       let parsed;
       try {
-        const response = await callGeminiWithRetry(async () => {
-          return await ai.models.generateContent({
-            model: "gemini-3.5-flash",
+        const response = await generateContentWithFallback(ai, {
             contents: [imagePart, { text: prompt }],
             config: {
               responseMimeType: "application/json",
@@ -179,8 +205,7 @@ Return ONLY a valid JSON object matching the requested schema. Do not wrap in ma
                 ]
               }
             }
-          });
-        });
+          }, ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-3.1-pro-preview", "gemini-3.5-flash"]);
 
         const textOutput = response.text || "";
         const cleanedJson = textOutput.replace(/```json/g, "").replace(/```/g, "").trim();
@@ -332,9 +357,7 @@ Return ONLY a valid JSON object matching the requested schema. Do not wrap in ma
 
       let result;
       try {
-        const response = await callGeminiWithRetry(async () => {
-          return await ai.models.generateContent({
-            model: "gemini-3.5-flash",
+        const response = await generateContentWithFallback(ai, {
             contents: prompt,
             config: {
               responseMimeType: "application/json",
@@ -361,8 +384,7 @@ Return ONLY a valid JSON object matching the requested schema. Do not wrap in ma
                 required: ["predictedHotspots", "summaryAnalysis"]
               }
             }
-          });
-        });
+          }, ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-3.1-pro-preview", "gemini-3.5-flash"]);
 
         const textOutput = response.text || "";
         const cleanedJson = textOutput.replace(/```json/g, "").replace(/```/g, "").trim();
@@ -427,12 +449,9 @@ Description: "${userText}"`;
 
       let cleanedText = "";
       try {
-        const response = await callGeminiWithRetry(async () => {
-          return await ai.models.generateContent({
-            model: "gemini-3.5-flash",
+        const response = await generateContentWithFallback(ai, {
             contents: prompt
-          });
-        });
+          }, ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-3.1-flash-lite", "gemini-3.5-flash"]);
         cleanedText = (response.text || userText).trim();
       } catch (geminiError: any) {
         console.warn("Gemini Cleanup failed or timed out. Falling back cleanly:", geminiError);
@@ -446,17 +465,28 @@ Description: "${userText}"`;
     }
   });
 
+  // Helper function to detect simple chit-chat or greeting queries
+  const isSimpleQuery = (msg: string): boolean => {
+    const lower = (msg || "").toLowerCase().trim();
+    if (/^(hi|hello|hey|namaste|pranam|hola|greetings|good morning|good afternoon|good evening)/i.test(lower)) return true;
+    if (lower.includes("hindi") || lower.includes("english") || lower.includes("bhasha") || lower.includes("language") || lower.includes("converse in") || lower.includes("speak in") || lower.includes("talk in") || lower.includes("conversing")) return true;
+    if (lower.includes("who are you") || lower.includes("your name") || lower.includes("how are you") || lower.includes("what is your purpose") || lower.includes("what can you do") || lower.includes("help me")) return true;
+    if (lower === "ok" || lower === "okay" || lower === "cool" || lower === "thanks" || lower === "thank you" || lower === "shukriya" || lower === "dhanyawad") return true;
+    if (lower.length < 15 && !lower.includes("pothole") && !lower.includes("garbage") && !lower.includes("light") && !lower.includes("issue") && !lower.includes("complaint")) return true;
+    return false;
+  };
+
   // API Route: Chatbot (Civic Pulse Assistant)
   app.post("/api/gemini/chatbot", async (req, res) => {
     try {
-      const { userMessage, locality, allIssues, history } = req.body;
+      const { userMessage, locality, allIssues, history, image } = req.body;
 
       const currentLocality = locality || "Varanasi, Sigra Ward";
 
       // Robust fallback response generator in case Gemini is disabled or fails
       const getFallbackResponse = (msg: string) => {
         const lowerMsg = (msg || "").toLowerCase();
-        let fallbackMsg = `🤖 Namaste! I'm your Civic Pulse AI Assistant for ${currentLocality}. `;
+        let fallbackMsg = `🤖 Namaste! I'm your DrishtiBot AI for ${currentLocality}. `;
         
         if (lowerMsg.includes("pothole") || lowerMsg.includes("road")) {
           fallbackMsg += "Road damage is a critical issue. We have active reports of deep potholes near Sigra Crossing. Please help verify reports or upload fresh photos to alert municipal engineers!";
@@ -475,37 +505,52 @@ Description: "${userText}"`;
 
       const ai = getGeminiClient();
       if (!ai) {
-        return res.json({ message: getFallbackResponse(userMessage) });
+        return res.json({ message: getFallbackResponse(userMessage), questions: ["Check nearby hotspots", "How to earn Civic Coins?"] });
       }
 
-      // Generate context block for Gemini
-      const activeIssues = Array.isArray(allIssues) ? allIssues.filter((i: any) => i.status !== "resolved") : [];
-      const criticalCount = activeIssues.filter((i: any) => i.severity >= 8).length;
+      const isSimple = isSimpleQuery(userMessage);
+      const hasImage = image && image.base64 && image.mimeType;
 
-      const context = `
+      // Select fallback models: simple queries prioritize speed and stable lightweight models
+      let modelsToUse = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-3.1-flash-lite", "gemini-3.5-flash"];
+      if (!isSimple || hasImage || userMessage.toLowerCase().includes("analyze") || userMessage.toLowerCase().includes("predict") || userMessage.toLowerCase().includes("summarize")) {
+        // Complex or vision tasks prioritize high capability models
+        modelsToUse = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"];
+      }
+
+      // Generate context block for Gemini ONLY if it's not a simple chit-chat greeting
+      let context = "";
+      if (!isSimple) {
+        const activeIssues = Array.isArray(allIssues) ? allIssues.filter((i: any) => i.status !== "resolved") : [];
+        const criticalCount = activeIssues.filter((i: any) => i.severity >= 8).length;
+
+        context = `
 Current Locality: ${currentLocality}
 Active Local Issues: ${activeIssues.length}
 Critical Local Issues: ${criticalCount}
 Sample Active Issues: ${JSON.stringify(activeIssues.slice(0, 3).map((i: any) => ({ category: i.category, title: i.title, severity: i.severity, status: i.status })))}
-      `;
+        `;
+      }
 
-      // Build a robust, single-string conversation history prompt to avoid role alternation and sequence errors
-      let conversationPrompt = `You are the Civic Pulse AI Assistant, an AI civic assistant for Indian cities helping citizens report, monitor, and solve civic infrastructure problems in Varanasi.
-Respond in 2-3 helpful, friendly sentences. Use a conversational tone, a natural mix of Hindi and English (Hinglish) is highly welcome and fits perfectly.
-Stay highly contextual to the current local issues of ${currentLocality}. Do not make up fake external issues outside of this list unless giving general educational civic advice.
+      // Build a robust, single-string conversation history prompt
+      let conversationPrompt = `You are DrishtiBot AI, an AI civic assistant for Indian cities helping citizens report, monitor, and solve civic infrastructure problems in Varanasi.
+Respond in a helpful, friendly manner. Use a conversational tone, a natural mix of Hindi and English (Hinglish) is highly welcome and fits perfectly.
+Stay highly contextual to the current local issues of ${currentLocality} if relevant. Do not make up fake external issues unless giving general educational advice.
 
-${context}
+${context ? `[Civic Database Context]\n${context}\n` : ""}
+${hasImage ? `[Vision Mode]: The user has attached an image of a potential civic problem. Analyze the attached image first, describe any defects, hazards, or civic issues visible in it (such as trash piles, damaged pavement, water logging, or dark roads), and state your findings clearly.` : ""}
 
 Instructions:
 1. Be polite, encouraging, and helpful.
-2. If the user mentions a specific issue or asks about active issues, use the provided local issues context to answer accurately.
-3. Keep the tone friendly and conversational.
+2. If answering a simple greeting or language change request (such as speaking Hindi/Hinglish), respond instantly, directly, and warmly in that language without talking about irrelevant civic database issues!
+3. If analyzing an image, identify issues like potholes, open garbage bins, broken streetlights, broken sewer lines, etc.
+4. You MUST extract 2-3 valuable, contextual follow-up questions that the user might want to ask next based on their input and your answer.
 
 Conversation History:`;
 
       if (Array.isArray(history)) {
         history.forEach((msg: any) => {
-          const roleName = msg.role === "user" ? "Citizen" : "Civic Pulse AI Assistant";
+          const roleName = msg.role === "user" ? "Citizen" : "DrishtiBot AI";
           if (msg.content) {
             conversationPrompt += `\n${roleName}: ${msg.content}`;
           }
@@ -513,23 +558,49 @@ Conversation History:`;
       }
 
       // Add the final user message
-      conversationPrompt += `\nCitizen: ${userMessage}\nCivic Pulse AI Assistant:`;
+      conversationPrompt += `\nCitizen: ${userMessage}\nDrishtiBot AI:`;
+
+      const contentsList: any[] = [];
+      if (hasImage) {
+        contentsList.push({
+          inlineData: {
+            mimeType: image.mimeType,
+            data: image.base64
+          }
+        });
+      }
+      contentsList.push(conversationPrompt);
 
       let chatbotResponse = "";
+      let followUpQuestions: string[] = [];
       try {
-        const response = await callGeminiWithRetry(async () => {
-          return await ai.models.generateContent({
-            model: "gemini-3.5-flash",
-            contents: conversationPrompt
-          });
-        });
-        chatbotResponse = (response.text || "").trim();
+        const response = await generateContentWithFallback(ai, {
+            contents: contentsList,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: "object",
+                properties: {
+                  message: { type: "string" },
+                  questions: {
+                    type: "array",
+                    items: { type: "string" }
+                  }
+                },
+                required: ["message", "questions"]
+              }
+            }
+          }, modelsToUse);
+        const parsed = JSON.parse(response.text || "{}");
+        chatbotResponse = parsed.message || "";
+        followUpQuestions = parsed.questions || [];
       } catch (geminiError: any) {
         console.warn("Gemini Chatbot API call failed, fell back gracefully:", geminiError);
         chatbotResponse = getFallbackResponse(userMessage);
+        followUpQuestions = ["What are the active issues?", "How can I earn Civic Coins?"];
       }
 
-      res.json({ message: chatbotResponse });
+      res.json({ message: chatbotResponse, questions: followUpQuestions });
     } catch (error: any) {
       console.error("Gemini Chatbot Endpoint Crash Error:", error);
       // Even if there's an unexpected crash, return a valid JSON fallback response instead of a 500 error!
@@ -569,9 +640,7 @@ Conversation History:`;
 
       let imageUrl = "";
       try {
-        const response = await callGeminiWithRetry(async () => {
-          return await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
+        const response = await generateContentWithFallback(ai, {
             contents: {
               parts: [
                 { text: `A realistic, high-quality photograph of a civic/infrastructure issue: ${prompt}. Photo from a smartphone, real world scene.` }
@@ -582,8 +651,7 @@ Conversation History:`;
                 aspectRatio: "4:3",
               }
             }
-          });
-        });
+          }, ["gemini-2.5-flash-image"]);
 
         let base64Image = "";
         if (response.candidates?.[0]?.content?.parts) {

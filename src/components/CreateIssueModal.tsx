@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { UserProfile, IssueReport } from "../types";
-import { X, Upload, Sparkles, Sliders, AlertTriangle, ShieldCheck, HelpCircle } from "lucide-react";
+import { X, Sparkles, AlertTriangle, ShieldCheck } from "lucide-react";
 import { motion } from "motion/react";
 import { CATEGORIES } from "../lib/data";
 import { detectLocationByIP, detectLocationByGPS } from "../utils/location";
@@ -22,10 +22,8 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
 
   // Image attachment states
   const [imageUrl, setImageUrl] = useState("");
-  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Scanner states
-  const [scanScore, setScanScore] = useState<number | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
   // AI Analysis states
@@ -38,19 +36,6 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
   const [authenticityExplanation, setAuthenticityExplanation] = useState<string>("");
   const [hazards, setHazards] = useState<string[]>(["High Traffic"]);
   const [pollQuestion, setPollQuestion] = useState("");
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setUploadingImage(true);
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string);
-        setUploadingImage(false);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleAICleanUp = async () => {
     if (!description) {

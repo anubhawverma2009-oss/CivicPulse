@@ -41,7 +41,7 @@ export default function CivicPulseLogo({
   const glowFilterId = "civicPulseGlow";
 
   // Animation variants
-  const logoContainerVariants = {
+  const logoContainerVariants: any = {
     initial: { scale: 0.9, opacity: 0 },
     animate: {
       scale: 1,
@@ -61,19 +61,7 @@ export default function CivicPulseLogo({
     tap: { scale: 0.95 },
   };
 
-  const pulseVariants = {
-    animate: {
-      scale: [1, 1.02, 1],
-      opacity: [0.95, 1, 0.95],
-      transition: {
-        duration: 3,
-        repeat: Infinity,
-        ease: "easeInOut",
-      },
-    },
-  };
-
-  const sparkVariants = {
+  const sparkVariants: any = {
     animate: {
       scale: [1, 1.2, 1],
       rotate: [0, 90, 0],
@@ -86,7 +74,7 @@ export default function CivicPulseLogo({
     },
   };
 
-  const drawPulseVariants = {
+  const drawPulseVariants: any = {
     initial: { pathLength: 0, opacity: 0.5 },
     animate: {
       pathLength: 1,
@@ -107,7 +95,6 @@ export default function CivicPulseLogo({
     const primaryBlue = customColor || "#4285F4";
     const accentCyan = isMonogram ? "#FFFFFF" : "#22D3EE";
     const accentTeal = isMonogram ? "#FFFFFF" : "#0D9488";
-    const pulseStroke = isLightMode ? "#1E3A8A" : (isMonogram ? "#FFFFFF" : "#00F2FE");
 
     return (
       <svg

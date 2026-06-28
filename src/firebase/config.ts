@@ -5,17 +5,14 @@ import {
   createUserWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  sendEmailVerification,
-  User as FirebaseUser
+  sendEmailVerification
 } from "firebase/auth";
 import { 
-  getFirestore, 
   initializeFirestore,
   doc, 
   setDoc as fbSetDoc, 
   getDoc, 
   collection, 
-  addDoc as fbAddDoc, 
   updateDoc as fbUpdateDoc, 
   query, 
   where, 
@@ -50,11 +47,6 @@ const setDoc = (reference: any, data: any, options?: any) => {
 const updateDoc = (reference: any, data: any) => {
   const cleanedData = cleanUndefined(data);
   return fbUpdateDoc(reference, cleanedData);
-};
-
-const addDoc = (reference: any, data: any) => {
-  const cleanedData = cleanUndefined(data);
-  return fbAddDoc(reference, cleanedData);
 };
 import { UserProfile, UserRole, IssueReport, Comment, ResolutionResponse, PeerEvidence } from "../types";
 import { INITIAL_ISSUES } from "../lib/data";
@@ -955,9 +947,11 @@ export const CivicDatabase = {
 
       // Auto resolution trigger: 80%+ solved votes out of 2+ verification responses
       let status: any = issueData.status;
+      let resolvedAt = issueData.resolvedAt || null;
       if (totalResVotes >= 2 && (newSolvedCount / totalResVotes) >= 0.8) {
         status = "resolved";
         isResolved = true;
+        resolvedAt = new Date().toISOString();
       }
 
       try {
@@ -966,7 +960,8 @@ export const CivicDatabase = {
           votedResolutionUserIds,
           "resolutionVotes.solved": newSolvedCount,
           "resolutionVotes.pending": newPendingCount,
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
+          ...(resolvedAt ? { resolvedAt } : {})
         });
       } catch (err) {
         handleFirestoreError(err, OperationType.UPDATE, `issues/${issueId}`);
@@ -1003,9 +998,11 @@ export const CivicDatabase = {
         const totalResVotes = newSolvedCount + newPendingCount;
 
         let status = issue.status;
+        let resolvedAt = issue.resolvedAt;
         if (totalResVotes >= 2 && (newSolvedCount / totalResVotes) >= 0.8) {
           status = "resolved";
           isResolved = true;
+          resolvedAt = new Date().toISOString();
         }
 
         return {
@@ -1016,7 +1013,8 @@ export const CivicDatabase = {
             solved: newSolvedCount,
             pending: newPendingCount
           },
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
+          ...(resolvedAt ? { resolvedAt } : {})
         };
       });
       saveLocalIssues(updated);
@@ -1149,7 +1147,7 @@ export const CivicDatabase = {
   },
 
   // Quick Like Report
-  likeIssue: async (issueId: string): Promise<void> => {
+  likeIssue: async (issueId: string, userId: string): Promise<void> => {
     if (isFirebaseConfigured && realDb) {
       const issueRef = doc(realDb, "issues", issueId);
       let issueDoc;
@@ -1161,9 +1159,19 @@ export const CivicDatabase = {
       if (!issueDoc || !issueDoc.exists()) return;
 
       const issueData = issueDoc.data() as IssueReport;
+      const likedUsers = issueData.likedUserIds || [];
+      const isLiked = likedUsers.includes(userId);
+      
+      const newLikedUsers = isLiked 
+        ? likedUsers.filter(id => id !== userId)
+        : [...likedUsers, userId];
+        
+      const newLikes = Math.max(0, (issueData.likes || 0) + (isLiked ? -1 : 1));
+
       try {
         await updateDoc(issueRef, {
-          likes: (issueData.likes || 0) + 1
+          likes: newLikes,
+          likedUserIds: newLikedUsers
         });
       } catch (err) {
         handleFirestoreError(err, OperationType.UPDATE, `issues/${issueId}`);
@@ -1172,7 +1180,14 @@ export const CivicDatabase = {
       const currentIssues = getLocalIssues();
       const updated = currentIssues.map(issue => {
         if (issue.id === issueId) {
-          return { ...issue, likes: (issue.likes || 0) + 1 };
+          const likedUsers = issue.likedUserIds || [];
+          const isLiked = likedUsers.includes(userId);
+          const newLikedUsers = isLiked 
+            ? likedUsers.filter(id => id !== userId)
+            : [...likedUsers, userId];
+          const newLikes = Math.max(0, (issue.likes || 0) + (isLiked ? -1 : 1));
+          
+          return { ...issue, likes: newLikes, likedUserIds: newLikedUsers };
         }
         return issue;
       });

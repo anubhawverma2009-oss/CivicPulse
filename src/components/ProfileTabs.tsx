@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { IssueReport, UserProfile } from "../types";
 import { FileText, Bookmark, BarChart3 } from "lucide-react";
 import IssueCard from "./IssueCard";

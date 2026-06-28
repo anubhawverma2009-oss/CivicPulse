@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Upload, Scan, Download, CheckCircle2, XCircle, RefreshCw, AlertCircle } from "lucide-react";
+import { Upload, Scan, Download, CheckCircle2, RefreshCw, AlertCircle } from "lucide-react";
 
 interface ScannerProps {
   imageUrl: string;
