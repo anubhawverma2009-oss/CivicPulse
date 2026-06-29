@@ -14,7 +14,7 @@ interface LeaderboardProps {
 }
 
 export default function Leaderboard({ issues, currentUser, onSaveIssue, onLike, onSelectIssue, activeLocation }: LeaderboardProps) {
-  const [filter, setFilter] = useState<"daily" | "weekly" | "monthly" | "resolved">("daily");
+  const [filter, setFilter] = useState<"all" | "daily" | "weekly" | "monthly" | "resolved">("all");
   const [expandedIssueIds, setExpandedIssueIds] = useState<Set<string>>(new Set());
 
   const getFilteredLeaderboard = () => {
@@ -32,9 +32,11 @@ export default function Leaderboard({ issues, currentUser, onSaveIssue, onLike, 
 
     if (filter === "resolved") {
       list = list.filter(i => i.status === "resolved");
-    } else {
+    } else if (filter !== "all") {
       list = list.filter(i => i.status !== "resolved");
       list = list.filter(i => new Date(i.createdAt) >= startDate);
+    } else {
+      list = list.filter(i => i.status !== "resolved");
     }
 
     return list.sort((a, b) => {
@@ -162,7 +164,7 @@ export default function Leaderboard({ issues, currentUser, onSaveIssue, onLike, 
 
       {/* Filter Tabs */}
       <div className="flex bg-[#0B0E14] p-1 rounded-xl border border-white/10 w-full sm:w-auto overflow-x-auto hide-scrollbar">
-        {(["daily", "weekly", "monthly", "resolved"] as const).map(tab => (
+        {(["all", "daily", "weekly", "monthly", "resolved"] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setFilter(tab)}

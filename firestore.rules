@@ -26,22 +26,44 @@ service cloud.firestore {
 
     // Users Collection
     match /users/{userId} {
-      allow get, list: if isSignedIn(); // Allow reading profile, maybe restrict to isOwner later
-      allow create: if isSignedIn() && request.auth.uid == userId && incoming().uid == request.auth.uid;
-      allow update: if isSignedIn() && request.auth.uid == userId && incoming().uid == request.auth.uid;
+      // Allow public get for user profiles (names, roles, etc. are public in civic platform)
+      allow get: if true;
+      allow list: if isSignedIn(); 
+      
+      allow create: if (
+        (isSignedIn() && request.auth.uid == userId) || 
+        userId.matches('^user-[a-zA-Z0-9]+$') // Allow seeding/accessing demo users
+      );
+      
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId || 
+        userId.matches('^user-[a-zA-Z0-9]+$')
+      );
     }
 
     // Issues Collection
     match /issues/{issueId} {
-      allow list, get: if isSignedIn();
-      allow create: if isSignedIn() && incoming().authorId == request.auth.uid;
-      allow update: if isSignedIn() && (
-        // Case 1: Author updates their own report
-        (existing().authorId == request.auth.uid) ||
-        // Case 2: Community and authority actions
-        incoming().diff(existing()).affectedKeys().hasOnly(['votedUserIds', 'pollVotes', 'votedResolutionUserIds', 'resolutionVotes', 'status', 'comments', 'peerEvidence', 'responses', 'likes', 'updatedAt', 'resolvedAt'])
+      // Allow public read for the civic feed (crucial for transparency)
+      allow list, get: if true;
+      
+      allow create: if (
+        (isSignedIn() && incoming().authorId == request.auth.uid) || 
+        issueId.matches('^issue-[0-9]+$') // Allow seeding demo issues
       );
-      allow delete: if false; // Disallow deletion for now
+      
+      allow update: if (
+        (isSignedIn() && (
+          (existing().authorId == request.auth.uid) ||
+          // Community and authority actions
+          incoming().diff(existing()).affectedKeys().hasOnly(['votedUserIds', 'pollVotes', 'votedResolutionUserIds', 'resolutionVotes', 'status', 'comments', 'peerEvidence', 'responses', 'likes', 'updatedAt', 'resolvedAt'])
+        )) ||
+        issueId.matches('^issue-[0-9]+$')
+      );
+      
+      allow delete: if (
+        (isSignedIn() && existing().authorId == request.auth.uid) ||
+        issueId.matches('^issue-[0-9]+$')
+      );
     }
   }
 }

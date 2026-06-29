@@ -11,8 +11,8 @@ interface IssueCardProps {
   key?: string | number;
   issue: IssueReport;
   currentUser: UserProfile;
-  onVote: (issueId: string, voteType: any) => void;
-  onVoteResolution: (issueId: string, voteType: any) => void;
+  onVote: (issueId: string, voteType: "yes" | "no") => void;
+  onVoteResolution: (issueId: string, voteType: "solved" | "pending") => void;
   onAddComment: (issueId: string, text: string) => void;
   onAddResolution: (issueId: string, description: string, proofImg?: string) => void;
   onLike: (issueId: string) => void;

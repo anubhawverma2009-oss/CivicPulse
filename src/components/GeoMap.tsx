@@ -39,20 +39,20 @@ function MapController({ center, zoom = 14 }: { center: [number, number], zoom?:
 // Heatmap Layer component
 const HeatmapLayer = React.memo(({ points }: { points: [number, number, number][] }) => {
   const map = useMap();
-  const heatLayerRef = React.useRef<any>(null);
+  const heatLayerRef = React.useRef<L.Layer | null>(null);
 
   useEffect(() => {
     // @ts-ignore - L.heatLayer comes from leaflet.heat
     if (!heatLayerRef.current) {
       // @ts-ignore
-      heatLayerRef.current = L.heatLayer(points, { 
+      heatLayerRef.current = (L as any).heatLayer(points, { 
         radius: 25, 
         blur: 15, 
         maxZoom: 16,
         gradient: { 0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1: 'red' }
       }).addTo(map);
     } else {
-      heatLayerRef.current.setLatLngs(points);
+      (heatLayerRef.current as any).setLatLngs(points);
     }
 
     return () => {
@@ -393,11 +393,11 @@ export default function GeoMap({
               { id: "resolved", label: "Resolved", icon: CheckCircle2 },
               { id: "critical", label: "Critical", icon: AlertTriangle }
             ].map((f) => {
-              const Icon = f.icon as any;
+              const Icon = f.icon as React.ElementType;
               return (
                 <button
                   key={f.id}
-                  onClick={() => setActiveFilter(f.id as any)}
+                  onClick={() => setActiveFilter(f.id as "all" | "pending" | "resolved" | "critical")}
                   className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-bold transition-all ${
                     activeFilter === f.id 
                       ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30" 
@@ -674,7 +674,7 @@ export default function GeoMap({
 }
 
 // Helper icons not imported
-function Globe(props: any) {
+function Globe(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <circle cx="12" cy="12" r="10" />
@@ -684,7 +684,7 @@ function Globe(props: any) {
   );
 }
 
-function Timer(props: any) {
+function Timer(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <line x1="10" y1="2" x2="14" y2="2" />

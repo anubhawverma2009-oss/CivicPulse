@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { UserProfile, IssueReport } from "../types";
-import { X, Sparkles, AlertTriangle, ShieldCheck } from "lucide-react";
+import { X, Sparkles, AlertTriangle, ShieldCheck, RefreshCw } from "lucide-react";
 import { motion } from "motion/react";
 import { CATEGORIES } from "../lib/data";
 import { detectLocationByIP, detectLocationByGPS } from "../utils/location";
@@ -26,9 +26,12 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
   // Scanner states
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
+  const [fileName, setFileName] = useState<string>("");
+
   // AI Analysis states
   const [analyzing, setAnalyzing] = useState(false);
   const [cleaningUp, setCleaningUp] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   const [aiConfidence, setAiConfidence] = useState(0.85);
   const [isReal, setIsReal] = useState(true);
   const [isAiGenerated, setIsAiGenerated] = useState(false);
@@ -36,6 +39,30 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
   const [authenticityExplanation, setAuthenticityExplanation] = useState<string>("");
   const [hazards, setHazards] = useState<string[]>(["High Traffic"]);
   const [pollQuestion, setPollQuestion] = useState("");
+
+  const handleAISuggest = async () => {
+    if (!title || !category || !imageUrl) return;
+    setSuggesting(true);
+    try {
+      const response = await fetch("/api/gemini/suggest-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          title, 
+          category: category === "CUSTOM" ? customCategoryName : category,
+          imageBase64: imageUrl 
+        })
+      });
+      const data = await response.json();
+      if (data.suggestion) {
+        setDescription(data.suggestion);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSuggesting(false);
+    }
+  };
 
   const handleAICleanUp = async () => {
     if (!description) {
@@ -72,10 +99,23 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageBase64: imageUrl,
+          fileName,
           userDescription: description || title || "Varanasi structural complaint"
         })
       });
       const data = await response.json();
+
+      // Strict rejection check
+      if (data.isAiGenerated === true || data.isReal === false || data.authenticityStatus === "AI_GENERATED") {
+        setIsReal(false);
+        setIsAiGenerated(true);
+        setAuthenticityStatus(data.authenticityStatus || "AI_GENERATED");
+        setAuthenticityExplanation(data.authenticityExplanation || "This image appears to be synthetic or AI-generated.");
+        alert("⚠️ AI FRAUD ALERT: This image has been identified as AI-generated or synthetic. Submission is blocked.");
+        setDescription(""); // Clear any suggested description for fake reports
+        return;
+      }
+
       if (data.category) {
         const catUpper = data.category.toUpperCase().replace("_", " ");
         const isPredefined = CATEGORIES.some(c => c.name === catUpper);
@@ -89,6 +129,7 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
       }
       if (data.severity) setSeverity(data.severity);
       if (data.report) setDescription(data.report);
+      if (data.suggestedTitle) setTitle(data.suggestedTitle);
       if (data.hazards) setHazards(data.hazards);
       if (data.pollQuestion) setPollQuestion(data.pollQuestion);
       if (data.ai_confidence) setAiConfidence(data.ai_confidence);
@@ -242,31 +283,6 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
             </div>
           </div>
 
-          {/* Description & AI Clean Up */}
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                Problem Description
-              </label>
-              <button
-                type="button"
-                disabled={cleaningUp || !description}
-                onClick={handleAICleanUp}
-                className="text-[10px] font-bold text-brand-primary flex items-center gap-0.5 hover:underline disabled:opacity-50 cursor-pointer"
-              >
-                <Sparkles className="w-3 h-3 text-brand-primary" /> 
-                {cleaningUp ? "Refining description..." : "AI Clean Up Description"}
-              </button>
-            </div>
-            <textarea
-              required
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. There is a deep hole on Sigra Crossing road, water is logging, bikes are skidding."
-              className="w-full bg-bg-secondary border border-brand-primary/10 rounded-lg px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-primary h-20 resize-none"
-            />
-          </div>
-
           {/* Unified Scanner & Photograph Uploader Section */}
           <div>
             <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
@@ -275,38 +291,91 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
             <Scanner 
               imageUrl={imageUrl} 
               setImageUrl={setImageUrl} 
-              onScanComplete={(score, correct) => {
-                setScanScore(score);
+              onScanComplete={(score, correct, name) => {
                 setIsCorrect(correct);
+                if (name) setFileName(name);
               }} 
             />
           </div>
 
-          {/* Previews attached image & AI Analyzer action */}
-          {imageUrl && isCorrect && (
-            <motion.div 
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              className="flex flex-col md:flex-row items-center gap-4 bg-bg-secondary/60 p-4 rounded-xl border border-brand-success/20 mt-2"
+          {/* Description & AI Clean Up - Hidden until Title, Category, and Scanned Image are ready */}
+          {title.trim().length > 0 && category && imageUrl && isCorrect === true && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-3 pt-4 border-t border-brand-primary/10"
             >
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-brand-success">
-                  <Sparkles className="w-4 h-4 text-brand-success animate-pulse" />
-                  Structural Match Approved! Proceed to AI Gemini Analysis.
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                  Problem Description
+                </label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    disabled={suggesting || analyzing}
+                    onClick={handleAISuggest}
+                    className="text-[10px] font-bold text-brand-primary flex items-center gap-0.5 hover:underline disabled:opacity-50 cursor-pointer bg-brand-primary/10 px-2 py-1 rounded-lg"
+                  >
+                    <Sparkles className="w-3 h-3" /> 
+                    {suggesting ? "AI Drafting..." : "AI Draft Description"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={cleaningUp || !description}
+                    onClick={handleAICleanUp}
+                    className="text-[10px] font-bold text-brand-success flex items-center gap-0.5 hover:underline disabled:opacity-50 cursor-pointer bg-brand-success/10 px-2 py-1 rounded-lg"
+                  >
+                    <ShieldCheck className="w-3 h-3" /> 
+                    {cleaningUp ? "Refining..." : "Professional Format"}
+                  </button>
                 </div>
-                <p className="text-[11px] text-text-muted">
-                  Gemini will parse the site layout to assess severity, identify hazards, and formulate localized civic action paths.
-                </p>
-                <button
-                  type="button"
-                  disabled={analyzing}
-                  onClick={handleAIAnalyze}
-                  className="px-4 py-2 bg-brand-primary hover:bg-brand-primary-dark text-white font-bold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-md transition-all active:scale-[0.98]"
-                >
-                  <Sparkles className="w-4 h-4 text-brand-warning animate-pulse" />
-                  {analyzing ? "AI Structural Analyzing..." : "Run AI Gemini Analysis"}
-                </button>
               </div>
+              <textarea
+                required
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe the issue in detail. You can use 'AI Draft' to get started based on your photo and title."
+                className="w-full bg-bg-secondary border border-brand-primary/10 rounded-lg px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-primary h-28 resize-none"
+              />
+              <div className="flex items-center gap-2 p-2 bg-blue-500/5 rounded-lg border border-blue-500/10">
+                <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                <p className="text-[10px] text-text-muted leading-tight">
+                  <span className="text-blue-400 font-bold">Pro Tip:</span> After writing or generating your description, use <span className="text-brand-success font-bold">Professional Format</span> to ensure your report meets Varanasi municipal standards.
+                </p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Previews attached image & AI Analyzer action */}
+          {imageUrl && isCorrect === true && !description && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-brand-primary/5 rounded-xl p-4 border border-brand-primary/10 text-center"
+            >
+              <div className="w-12 h-12 rounded-full bg-brand-primary/10 flex items-center justify-center mx-auto mb-3">
+                <Sparkles className="w-6 h-6 text-brand-primary" />
+              </div>
+              <h4 className="text-xs font-bold text-text-primary mb-1">AI Co-Pilot is Ready</h4>
+              <p className="text-[10px] text-text-muted mb-3">Click below to automatically analyze the image, improve your title, and write a detailed description!</p>
+              <button
+                type="button"
+                disabled={analyzing}
+                onClick={handleAIAnalyze}
+                className="w-full py-2 bg-brand-primary text-white text-xs font-bold rounded-lg hover:bg-brand-primary-dark transition-all flex items-center justify-center gap-2"
+              >
+                {analyzing ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Analyzing Infrastructure...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    AI Analyze & Write Report
+                  </>
+                )}
+              </button>
             </motion.div>
           )}
 
@@ -448,7 +517,8 @@ export default function CreateIssueModal({ currentUser, onClose, onSave }: Creat
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-dark text-white text-xs font-bold rounded-lg cursor-pointer shadow-lg shadow-brand-primary/15"
+              disabled={isAiGenerated || !isReal}
+              className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-dark text-white text-xs font-bold rounded-lg cursor-pointer shadow-lg shadow-brand-primary/15 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Post Complaint
             </button>

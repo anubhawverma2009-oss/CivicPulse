@@ -48,7 +48,7 @@ const updateDoc = (reference: any, data: any) => {
   const cleanedData = cleanUndefined(data);
   return fbUpdateDoc(reference, cleanedData);
 };
-import { UserProfile, UserRole, IssueReport, Comment, ResolutionResponse, PeerEvidence } from "../types";
+import { UserProfile, UserRole, IssueReport, Comment, ResolutionResponse, PeerEvidence, Transaction } from "../types";
 import { INITIAL_ISSUES } from "../lib/data";
 import firebaseConfig from "../../firebase-applet-config.json";
 
@@ -152,9 +152,10 @@ const LOCAL_CURRENT_USER_KEY = "civicpulse_firebase_current";
 
 const getLocalUsers = (): Record<string, UserProfile> => {
   const data = localStorage.getItem(LOCAL_USERS_KEY);
+  let users: Record<string, UserProfile> = {};
   if (!data) {
     // Generate initial sample users
-    const sampleUsers: Record<string, UserProfile> = {
+    users = {
       "user-aravind": {
         uid: "user-aravind",
         email: "aravind@gmail.com",
@@ -186,10 +187,122 @@ const getLocalUsers = (): Record<string, UserProfile> => {
         onboardingComplete: true
       }
     };
-    localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(sampleUsers));
-    return sampleUsers;
+    localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+  } else {
+    users = JSON.parse(data);
   }
-  return JSON.parse(data);
+
+  // Always ensure user-vijay is seeded in local users for demo purposes
+  const customTransactions: Transaction[] = [
+    {
+      id: "tx-onboarding",
+      type: "earn",
+      amount: 20,
+      description: "Civic Pulse Onboarding Bonus",
+      timestamp: new Date(Date.now() - 3600000 * 24 * 7).toISOString(),
+      status: "completed"
+    },
+    {
+      id: "tx-submit-1",
+      type: "earn",
+      amount: 20,
+      description: "Report Submitted: Pothole on Sigra Main Road",
+      timestamp: new Date(Date.now() - 3600000 * 24 * 5).toISOString(),
+      status: "completed"
+    },
+    {
+      id: "tx-verify-1",
+      type: "earn",
+      amount: 50,
+      description: "Report Verified: Pothole on Sigra Main Road",
+      timestamp: new Date(Date.now() - 3600000 * 24 * 4.5).toISOString(),
+      status: "completed"
+    },
+    {
+      id: "tx-submit-2",
+      type: "earn",
+      amount: 20,
+      description: "Report Submitted: Garbage Spill in Orderly Bazar",
+      timestamp: new Date(Date.now() - 3600000 * 24 * 4).toISOString(),
+      status: "completed"
+    },
+    {
+      id: "tx-verify-2",
+      type: "earn",
+      amount: 50,
+      description: "Report Verified: Garbage Spill in Orderly Bazar",
+      timestamp: new Date(Date.now() - 3600000 * 24 * 3.5).toISOString(),
+      status: "completed"
+    },
+    {
+      id: "tx-submit-3",
+      type: "earn",
+      amount: 20,
+      description: "Report Submitted: Traffic Signal Failure",
+      timestamp: new Date(Date.now() - 3600000 * 24 * 3).toISOString(),
+      status: "completed"
+    },
+    {
+      id: "tx-verify-3",
+      type: "earn",
+      amount: 50,
+      description: "Report Verified: Traffic Signal Failure",
+      timestamp: new Date(Date.now() - 3600000 * 24 * 2.5).toISOString(),
+      status: "completed"
+    },
+    {
+      id: "tx-submit-4",
+      type: "earn",
+      amount: 20,
+      description: "Report Submitted: Illegal Dump near Sigra Park",
+      timestamp: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
+      status: "completed"
+    },
+    {
+      id: "tx-verify-4",
+      type: "earn",
+      amount: 50,
+      description: "Report Verified: Illegal Dump near Sigra Park",
+      timestamp: new Date(Date.now() - 3600000 * 24 * 1.5).toISOString(),
+      status: "completed"
+    },
+    {
+      id: "tx-resolve-4",
+      type: "earn",
+      amount: 100,
+      description: "Issue Resolved: Illegal Dump near Sigra Park",
+      timestamp: new Date(Date.now() - 3600000 * 24 * 1).toISOString(),
+      status: "completed"
+    },
+    {
+      id: "tx-redeem-1",
+      type: "redeem",
+      amount: 100,
+      description: "Eco Tote Bag Redeemed",
+      timestamp: new Date(Date.now() - 3600000 * 12).toISOString(),
+      status: "completed"
+    }
+  ];
+
+  users["user-vijay"] = {
+    uid: "user-vijay",
+    email: "vermavijay31550@gmail.com",
+    photoURL: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
+    name: "Vijay Verma",
+    role: "citizen",
+    location: "Varanasi, Sigra Ward",
+    civicScore: 400,
+    civicCoins: 300,
+    badges: ["first_reporter", "guard", "truth_seeker", "landmark"],
+    savedIssues: [],
+    createdAt: new Date().toISOString(),
+    onboardingComplete: true,
+    redeemedRewards: ["eco_tote_bag"],
+    transactions: customTransactions
+  };
+
+  localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+  return users;
 };
 
 const getLocalIssues = (): IssueReport[] => {
@@ -198,7 +311,19 @@ const getLocalIssues = (): IssueReport[] => {
     localStorage.setItem(LOCAL_ISSUES_KEY, JSON.stringify(INITIAL_ISSUES));
     return INITIAL_ISSUES;
   }
-  return JSON.parse(data);
+  try {
+    const parsed = JSON.parse(data);
+    const hasNewIssues = Array.isArray(parsed) && parsed.some((issue: any) => issue.id === "issue-10");
+    if (!hasNewIssues) {
+      console.log("Upgrading local storage issues to the realistic demo dataset...");
+      localStorage.setItem(LOCAL_ISSUES_KEY, JSON.stringify(INITIAL_ISSUES));
+      return INITIAL_ISSUES;
+    }
+    return parsed;
+  } catch (e) {
+    localStorage.setItem(LOCAL_ISSUES_KEY, JSON.stringify(INITIAL_ISSUES));
+    return INITIAL_ISSUES;
+  }
 };
 
 const saveLocalUsers = (users: Record<string, UserProfile>) => {
@@ -536,6 +661,27 @@ export const CivicAuth = {
       localStorage.setItem(LOCAL_CURRENT_USER_KEY, JSON.stringify(user));
       notifyAuthListeners();
       return user;
+    }
+  },
+
+  // Signs in the sandbox fallback user to Firebase Auth
+  signInSandboxUser: async (email: string): Promise<void> => {
+    if (isFirebaseConfigured && realAuth) {
+      try {
+        await signInWithEmailAndPassword(realAuth, email, "Password123!");
+        console.log("Successfully signed in sandbox user to Firebase Auth.");
+      } catch (signInErr: any) {
+        if (signInErr.code === "auth/user-not-found" || signInErr.code === "auth/invalid-credential" || signInErr.code === "auth/wrong-password") {
+          try {
+            await createUserWithEmailAndPassword(realAuth, email, "Password123!");
+            console.log("Successfully created sandbox user in Firebase Auth.");
+          } catch (createErr) {
+            console.warn("Failed to create sandbox user in Firebase Auth:", createErr);
+          }
+        } else {
+          console.warn("Failed to sign in sandbox user to Firebase Auth:", signInErr);
+        }
+      }
     }
   },
 
@@ -1196,7 +1342,7 @@ export const CivicDatabase = {
     }
   },
 
-  // Seed initial values in Firestore if it is completely empty
+  // Seed initial values in Firestore for missing demo issues and users
   seedDatabaseIfEmpty: async (): Promise<void> => {
     if (isFirebaseConfigured && realDb) {
       try {
@@ -1208,55 +1354,177 @@ export const CivicDatabase = {
           handleFirestoreError(err, OperationType.LIST, "issues");
           return;
         }
-        if (querySnapshot && querySnapshot.empty) {
-          console.log("Seeding Firestore with INITIAL_ISSUES demo dataset...");
-          for (const issue of INITIAL_ISSUES) {
+
+        // Get IDs of all existing issues in the DB
+        const existingIds = new Set<string>();
+        if (querySnapshot) {
+          querySnapshot.forEach(doc => {
+            existingIds.add(doc.id);
+          });
+        }
+
+        // We want to make sure all 10 initial issues are in the database
+        const missingIssues = INITIAL_ISSUES.filter(issue => !existingIds.has(issue.id));
+        if (missingIssues.length > 0) {
+          console.log(`Seeding Firestore with ${missingIssues.length} missing demo issues...`);
+          for (const issue of missingIssues) {
             try {
               await setDoc(doc(realDb, "issues", issue.id), issue);
             } catch (err) {
               handleFirestoreError(err, OperationType.WRITE, `issues/${issue.id}`);
             }
           }
-          // Seed users
-          const initialUsers = {
-            "user-aravind": {
-              uid: "user-aravind",
-              email: "aravind@gmail.com",
-              photoURL: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
-              name: "Aravind Dev",
-              role: "citizen" as const,
-              location: "Varanasi, Sigra Ward",
-              civicScore: 1240,
-              badges: ["first_reporter", "guard", "truth_seeker", "landmark"],
-              savedIssues: [],
-              createdAt: new Date().toISOString()
-            },
-            "user-muni": {
-              uid: "user-muni",
-              email: "authority@muncipal.in",
-              photoURL: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&q=80",
-              name: "Director Mishra",
-              role: "authority" as const,
-              location: "Varanasi Central District",
-              civicScore: 100,
-              badges: [],
-              savedIssues: [],
-              createdAt: new Date().toISOString(),
-              department: "PWD Pavement & Roads",
-              designation: "Executive Engineer",
-              bio: "Overseeing public infrastructure maintenance and safety operations for Varanasi East division.",
-              documentVerified: true
-            }
-          };
-          for (const [uid, uProfile] of Object.entries(initialUsers)) {
-            try {
-              await setDoc(doc(realDb, "users", uid), uProfile);
-            } catch (err) {
-              handleFirestoreError(err, OperationType.WRITE, `users/${uid}`);
-            }
-          }
-          console.log("Database seed completed successfully.");
         }
+
+        // Seed missing initial users
+        const initialUsers = {
+          "user-aravind": {
+            uid: "user-aravind",
+            email: "aravind@gmail.com",
+            photoURL: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
+            name: "Aravind Dev",
+            role: "citizen" as const,
+            location: "Varanasi, Sigra Ward",
+            civicScore: 1240,
+            badges: ["first_reporter", "guard", "truth_seeker", "landmark"],
+            savedIssues: [],
+            createdAt: new Date().toISOString()
+          },
+          "user-vijay": {
+            uid: "user-vijay",
+            email: "vermavijay31550@gmail.com",
+            photoURL: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
+            name: "Vijay Verma",
+            role: "citizen" as const,
+            location: "Varanasi, Sigra Ward",
+            civicScore: 400,
+            civicCoins: 300,
+            badges: ["first_reporter", "guard", "truth_seeker", "landmark"],
+            savedIssues: [],
+            createdAt: new Date().toISOString(),
+            redeemedRewards: ["eco_tote_bag"],
+            transactions: [
+              {
+                id: "tx-onboarding",
+                type: "earn" as const,
+                amount: 20,
+                description: "Civic Pulse Onboarding Bonus",
+                timestamp: new Date(Date.now() - 3600000 * 24 * 7).toISOString(),
+                status: "completed" as const
+              },
+              {
+                id: "tx-submit-1",
+                type: "earn" as const,
+                amount: 20,
+                description: "Report Submitted: Pothole on Sigra Main Road",
+                timestamp: new Date(Date.now() - 3600000 * 24 * 5).toISOString(),
+                status: "completed" as const
+              },
+              {
+                id: "tx-verify-1",
+                type: "earn" as const,
+                amount: 50,
+                description: "Report Verified: Pothole on Sigra Main Road",
+                timestamp: new Date(Date.now() - 3600000 * 24 * 4.5).toISOString(),
+                status: "completed" as const
+              },
+              {
+                id: "tx-submit-2",
+                type: "earn" as const,
+                amount: 20,
+                description: "Report Submitted: Garbage Spill in Orderly Bazar",
+                timestamp: new Date(Date.now() - 3600000 * 24 * 4).toISOString(),
+                status: "completed" as const
+              },
+              {
+                id: "tx-verify-2",
+                type: "earn" as const,
+                amount: 50,
+                description: "Report Verified: Garbage Spill in Orderly Bazar",
+                timestamp: new Date(Date.now() - 3600000 * 24 * 3.5).toISOString(),
+                status: "completed" as const
+              },
+              {
+                id: "tx-submit-3",
+                type: "earn" as const,
+                amount: 20,
+                description: "Report Submitted: Traffic Signal Failure",
+                timestamp: new Date(Date.now() - 3600000 * 24 * 3).toISOString(),
+                status: "completed" as const
+              },
+              {
+                id: "tx-verify-3",
+                type: "earn" as const,
+                amount: 50,
+                description: "Report Verified: Traffic Signal Failure",
+                timestamp: new Date(Date.now() - 3600000 * 24 * 2.5).toISOString(),
+                status: "completed" as const
+              },
+              {
+                id: "tx-submit-4",
+                type: "earn" as const,
+                amount: 20,
+                description: "Report Submitted: Illegal Dump near Sigra Park",
+                timestamp: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
+                status: "completed" as const
+              },
+              {
+                id: "tx-verify-4",
+                type: "earn" as const,
+                amount: 50,
+                description: "Report Verified: Illegal Dump near Sigra Park",
+                timestamp: new Date(Date.now() - 3600000 * 24 * 1.5).toISOString(),
+                status: "completed" as const
+              },
+              {
+                id: "tx-resolve-4",
+                type: "earn" as const,
+                amount: 100,
+                description: "Issue Resolved: Illegal Dump near Sigra Park",
+                timestamp: new Date(Date.now() - 3600000 * 24 * 1).toISOString(),
+                status: "completed" as const
+              },
+              {
+                id: "tx-redeem-1",
+                type: "redeem" as const,
+                amount: 100,
+                description: "Eco Tote Bag Redeemed",
+                timestamp: new Date(Date.now() - 3600000 * 12).toISOString(),
+                status: "completed" as const
+              }
+            ]
+          },
+          "user-muni": {
+            uid: "user-muni",
+            email: "authority@muncipal.in",
+            photoURL: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&q=80",
+            name: "Director Mishra",
+            role: "authority" as const,
+            location: "Varanasi Central District",
+            civicScore: 100,
+            badges: [],
+            savedIssues: [],
+            createdAt: new Date().toISOString(),
+            department: "PWD Pavement & Roads",
+            designation: "Executive Engineer",
+            bio: "Overseeing public infrastructure maintenance and safety operations for Varanasi East division.",
+            documentVerified: true
+          }
+        };
+
+        for (const [uid, uProfile] of Object.entries(initialUsers)) {
+          try {
+            const userRef = doc(realDb, "users", uid);
+            const userSnap = await getDoc(userRef);
+            if (!userSnap.exists()) {
+              console.log(`Seeding missing user profile: ${uid}`);
+              await setDoc(userRef, uProfile);
+            }
+          } catch (err) {
+            handleFirestoreError(err, OperationType.WRITE, `users/${uid}`);
+          }
+        }
+        console.log("Database seed check completed.");
       } catch (err) {
         console.error("Firestore DB seed failed:", err);
       }

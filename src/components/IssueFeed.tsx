@@ -2,6 +2,7 @@ import { useState } from "react";
 import { IssueReport, UserProfile } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { CATEGORIES } from "../lib/data";
+import { Bot } from "lucide-react";
 import IssueCard from "./IssueCard";
 import DrishtiBot from "./DrishtiBot";
 import CivicPulseLogo from "./CivicPulseLogo";
@@ -9,15 +10,18 @@ import CivicPulseLogo from "./CivicPulseLogo";
 interface IssueFeedProps {
   issues: IssueReport[];
   currentUser: UserProfile;
-  onVote: (issueId: string, voteType: any) => void;
-  onVoteResolution: (issueId: string, voteType: any) => void;
+  onVote: (issueId: string, voteType: "yes" | "no") => void;
+  onVoteResolution: (issueId: string, voteType: "solved" | "pending") => void;
   onAddComment: (issueId: string, text: string) => void;
   onAddResolution: (issueId: string, description: string, proofImg?: string) => void;
   onLike: (issueId: string) => void;
   onSaveIssue: (issueId: string) => void;
   onAddPeerEvidence: (issueId: string, description: string, proofImg?: string) => void;
+  onTriggerFix: (issueId: string) => void;
+  activeLocation?: string;
   searchQuery?: string;
   setSearchQuery?: (val: string) => void;
+  onNavigate?: (view: string) => void;
 }
 
 export default function IssueFeed({
@@ -31,7 +35,8 @@ export default function IssueFeed({
   onSaveIssue,
   onAddPeerEvidence,
   searchQuery: externalSearchQuery,
-  setSearchQuery: externalSetSearchQuery
+  setSearchQuery: externalSetSearchQuery,
+  onNavigate
 }: IssueFeedProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -45,7 +50,8 @@ export default function IssueFeed({
     const matchesStatus = selectedStatus === "all" || 
       (selectedStatus === "active" && issue.status !== "resolved") ||
       (selectedStatus === "resolved" && issue.status === "resolved");
-    const matchesSearch = issue.title.toLowerCase().includes(activeSearchQuery.toLowerCase()) || 
+    const matchesSearch = issue.id.toLowerCase() === activeSearchQuery.toLowerCase() ||
+      issue.title.toLowerCase().includes(activeSearchQuery.toLowerCase()) || 
       issue.description.toLowerCase().includes(activeSearchQuery.toLowerCase()) ||
       issue.category.toLowerCase().includes(activeSearchQuery.toLowerCase());
     return matchesCategory && matchesStatus && matchesSearch;
@@ -85,86 +91,115 @@ export default function IssueFeed({
       </div>
 
       {/* Active Status Tabs */}
-      <div className="flex border-b border-brand-primary/10 pb-px">
-        <button
-          onClick={() => setSelectedStatus("all")}
-          className={`px-5 py-3 text-sm font-semibold transition-all relative cursor-pointer ${
-            selectedStatus === "all" ? "text-brand-primary" : "text-text-muted hover:text-text-secondary"
-          }`}
-        >
-          All Issues ({issues.length})
-          {selectedStatus === "all" && (
-            <motion.div layoutId="activeStatusTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary" />
-          )}
-        </button>
-        <button
-          onClick={() => setSelectedStatus("active")}
-          className={`px-5 py-3 text-sm font-semibold transition-all relative cursor-pointer ${
-            selectedStatus === "active" ? "text-brand-primary" : "text-text-muted hover:text-text-secondary"
-          }`}
-        >
-          Active Complaints ({issues.filter(i => i.status !== "resolved").length})
-          {selectedStatus === "active" && (
-            <motion.div layoutId="activeStatusTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary" />
-          )}
-        </button>
-        <button
-          onClick={() => setSelectedStatus("resolved")}
-          className={`px-5 py-3 text-sm font-semibold transition-all relative cursor-pointer ${
-            selectedStatus === "resolved" ? "text-brand-primary" : "text-text-muted hover:text-text-secondary"
-          }`}
-        >
-          Resolved Work Orders ({issues.filter(i => i.status === "resolved").length})
-          {selectedStatus === "resolved" && (
-            <motion.div layoutId="activeStatusTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary" />
-          )}
-        </button>
+      <div className="flex items-center justify-between border-b border-brand-primary/10 pb-px overflow-x-auto scrollbar-none">
+        <div className="flex">
+          <button
+            onClick={() => setSelectedStatus("all")}
+            className={`px-5 py-3 text-sm font-semibold transition-all relative cursor-pointer whitespace-nowrap ${
+              selectedStatus === "all" ? "text-brand-primary" : "text-text-muted hover:text-text-secondary"
+            }`}
+          >
+            All Issues ({issues.length})
+            {selectedStatus === "all" && (
+              <motion.div layoutId="activeStatusTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary" />
+            )}
+          </button>
+          <button
+            onClick={() => setSelectedStatus("active")}
+            className={`px-5 py-3 text-sm font-semibold transition-all relative cursor-pointer whitespace-nowrap ${
+              selectedStatus === "active" ? "text-brand-primary" : "text-text-muted hover:text-text-secondary"
+            }`}
+          >
+            Active ({issues.filter(i => i.status !== "resolved").length})
+            {selectedStatus === "active" && (
+              <motion.div layoutId="activeStatusTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary" />
+            )}
+          </button>
+          <button
+            onClick={() => setSelectedStatus("resolved")}
+            className={`px-5 py-3 text-sm font-semibold transition-all relative cursor-pointer whitespace-nowrap ${
+              selectedStatus === "resolved" ? "text-brand-primary" : "text-text-muted hover:text-text-secondary"
+            }`}
+          >
+            Resolved ({issues.filter(i => i.status === "resolved").length})
+            {selectedStatus === "resolved" && (
+              <motion.div layoutId="activeStatusTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary" />
+            )}
+          </button>
+          <button
+            onClick={() => setSelectedStatus("bot")}
+            className={`px-5 py-3 text-sm font-semibold transition-all relative cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              selectedStatus === "bot" ? "text-brand-primary" : "text-text-muted hover:text-text-secondary"
+            }`}
+          >
+            <Bot className="w-4 h-4 text-purple-400 shrink-0 animate-pulse" /> DrishtiBot <span className="text-blue-400">AI</span>
+            {selectedStatus === "bot" && (
+              <motion.div layoutId="activeStatusTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-primary" />
+            )}
+          </button>
+        </div>
+
+        {activeSearchQuery && (
+          <button 
+            onClick={() => {
+              if (externalSetSearchQuery) externalSetSearchQuery("");
+              setLocalSearchQuery("");
+            }}
+            className="px-4 py-1.5 mr-4 text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full hover:bg-blue-500/20 transition-all flex items-center gap-2"
+          >
+            Clear Search: <span className="text-white">"{activeSearchQuery.length > 15 ? activeSearchQuery.substring(0, 15) + '...' : activeSearchQuery}"</span>
+          </button>
+        )}
       </div>
 
-      {/* 2-COLUMN LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* LEFT COLUMN: Community Feed */}
-        <div className="lg:col-span-7 xl:col-span-7 space-y-6">
-          <AnimatePresence mode="popLayout">
-            {filteredIssues.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="py-16 text-center glass-panel rounded-2xl"
-              >
-                <div className="mb-4 flex justify-center">
-                  <CivicPulseLogo variant="circular-icon" size={54} animate={true} />
-                </div>
-                <h3 className="text-lg font-bold">No Issues Found</h3>
-                <p className="text-sm text-text-muted mt-1 px-4">
-                  No civic reports found in this area.
-                </p>
-              </motion.div>
-            ) : (
-              filteredIssues.map(issue => (
-                <IssueCard
-                  key={issue.id}
-                  issue={issue}
-                  currentUser={currentUser}
-                  onVote={onVote}
-                  onVoteResolution={onVoteResolution}
-                  onAddComment={onAddComment}
-                  onAddResolution={onAddResolution}
-                  onLike={onLike}
-                  onSaveIssue={onSaveIssue}
-                  onAddPeerEvidence={onAddPeerEvidence}
-                />
-              ))
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* RIGHT COLUMN: Chatbot & Insights Sidebar (STICKY) */}
-        <div className="lg:col-span-5 xl:col-span-5 lg:sticky lg:top-24 space-y-4 w-full">
-          <DrishtiBot currentUser={currentUser} issues={issues} />
-        </div>
+      {/* RENDER BODY */}
+      <div className="w-full">
+        {selectedStatus === "bot" ? (
+          <div className="w-full max-w-4xl mx-auto">
+            <DrishtiBot 
+              currentUser={currentUser} 
+              issues={issues} 
+              compact={false} 
+              onNavigate={onNavigate} 
+            />
+          </div>
+        ) : (
+          <div className="w-full max-w-4xl mx-auto space-y-6">
+            <AnimatePresence mode="popLayout">
+              {filteredIssues.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="py-16 text-center glass-panel rounded-2xl"
+                >
+                  <div className="mb-4 flex justify-center">
+                    <CivicPulseLogo variant="circular-icon" size={54} animate={true} />
+                  </div>
+                  <h3 className="text-lg font-bold">No Issues Found</h3>
+                  <p className="text-sm text-text-muted mt-1 px-4">
+                    No civic reports found in this area.
+                  </p>
+                </motion.div>
+              ) : (
+                filteredIssues.map(issue => (
+                  <IssueCard
+                    key={issue.id}
+                    issue={issue}
+                    currentUser={currentUser}
+                    onVote={onVote}
+                    onVoteResolution={onVoteResolution}
+                    onAddComment={onAddComment}
+                    onAddResolution={onAddResolution}
+                    onLike={onLike}
+                    onSaveIssue={onSaveIssue}
+                    onAddPeerEvidence={onAddPeerEvidence}
+                  />
+                ))
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     </div>
   );

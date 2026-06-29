@@ -22,7 +22,8 @@ interface Message {
 interface DrishtiBotProps {
   currentUser: UserProfile;
   issues: IssueReport[];
-  onNavigate?: (view: any) => void;
+  onNavigate?: (view: string) => void;
+  compact?: boolean;
 }
 
 // Typing effect for the first welcome message
@@ -200,7 +201,8 @@ const WelcomeCard = ({ userName, onAction }: { userName: string, onAction: (text
   </motion.div>
 );
 
-export default function DrishtiBot({ currentUser, issues, onNavigate }: DrishtiBotProps) {
+export default function DrishtiBot({ currentUser, issues, onNavigate, compact }: DrishtiBotProps) {
+  const isCompact = compact || !onNavigate;
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -389,33 +391,39 @@ export default function DrishtiBot({ currentUser, issues, onNavigate }: DrishtiB
   };
 
   return (
-    <div className="flex flex-col h-[75vh] md:h-full min-h-[600px] w-full bg-[#030712] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900/60 via-[#030712] to-[#020617] overflow-hidden relative">
+    <div className={`flex flex-col ${isCompact ? "h-[500px] lg:h-[550px] min-h-[500px]" : "h-[75vh] md:h-full min-h-[600px]"} w-full bg-[#030712] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900/60 via-[#030712] to-[#020617] overflow-hidden relative font-sans rounded-2xl border border-white/5 shadow-2xl`}>
       {/* Background Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-40 bg-blue-600/10 blur-[120px] pointer-events-none" />
 
       {/* HEADER: Enterprise AI Identity */}
-      <div className="px-4 md:px-6 py-4 md:py-5 border-b border-white/[0.04] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-0 z-10 bg-slate-950/20 backdrop-blur-sm">
+      <div className={`px-4 ${isCompact ? "py-3" : "md:px-6 py-4 md:py-5"} border-b border-white/[0.04] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-0 z-10 bg-slate-950/20 backdrop-blur-sm`}>
         <div className="flex items-center justify-between w-full md:w-auto">
           <div className="flex items-center gap-3 md:gap-5">
             <div className="relative group/bot shrink-0">
               {/* Subtle blue glow around the icon */}
               <div className="absolute -inset-2 bg-gradient-to-br from-blue-600/30 to-indigo-500/30 rounded-2xl blur-lg opacity-60 group-hover/bot:opacity-90 transition duration-500" />
               <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl opacity-30 group-hover/bot:opacity-50 blur-xs transition duration-500" />
-              <div className="relative w-12 h-12 md:w-16 md:h-16 bg-slate-800 rounded-2xl flex items-center justify-center border border-white/10 shadow-2xl overflow-hidden transition-all duration-300">
-                <Bot className="w-6 h-6 md:w-9 md:h-9 text-white group-hover/bot:scale-110 transition-transform duration-500" />
+              <div className={`relative ${isCompact ? "w-10 h-10 rounded-xl" : "w-12 h-12 md:w-16 md:h-16 rounded-2xl"} bg-slate-800 flex items-center justify-center border border-white/10 shadow-2xl overflow-hidden transition-all duration-300`}>
+                <Bot className={`${isCompact ? "w-5 h-5" : "w-6 h-6 md:w-9 md:h-9"} text-white group-hover/bot:scale-110 transition-transform duration-500`} />
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500" />
               </div>
-              <div className="absolute -bottom-1 -right-1 w-4 h-4 md:w-5 md:h-5 bg-emerald-500 border-2 md:border-[3px] border-[#020617] rounded-full shadow-lg" />
+              <div className={`absolute ${isCompact ? "-bottom-0.5 -right-0.5 w-3 h-3" : "-bottom-1 -right-1 w-4 h-4 md:w-5 md:h-5"} bg-emerald-500 border-2 border-[#020617] rounded-full shadow-lg`} />
             </div>
             <div className="min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2.5">
-                <h2 className="text-lg md:text-xl font-extrabold text-white tracking-tight truncate">DrishtiBot AI</h2>
-                {/* Reduced weight of COMMAND CENTER badge */}
-                <div className="self-start sm:self-auto px-1.5 md:px-2 py-0.5 bg-white/5 rounded-md border border-white/10 shadow-inner shrink-0">
-                  <span className="text-[8px] md:text-[9px] font-semibold text-slate-400 uppercase tracking-[0.15em]">Command Center</span>
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-500/5 border border-blue-500/10 rounded-lg">
+                  <h2 className={`text-sm ${isCompact ? "" : "md:text-base"} font-black text-white tracking-tighter leading-none`}>
+                    DrishtiBot <span className="text-blue-400">AI</span>
+                  </h2>
                 </div>
+                {/* Reduced weight of COMMAND CENTER badge */}
+                {!isCompact && (
+                  <div className="self-start sm:self-auto px-1.5 md:px-2 py-0.5 bg-white/5 rounded-md border border-white/10 shadow-inner shrink-0">
+                    <span className="text-[8px] md:text-[9px] font-semibold text-slate-400 uppercase tracking-[0.15em]">Command Center</span>
+                  </div>
+                )}
               </div>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 text-slate-400 mt-0.5 md:mt-1">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 text-slate-400 mt-0.5">
                 <span className="text-[10px] md:text-[11px] font-medium opacity-80 truncate">Live Civic Intelligence Assistant</span>
               </div>
             </div>
@@ -470,7 +478,7 @@ export default function DrishtiBot({ currentUser, issues, onNavigate }: DrishtiB
       </div>
 
       {/* CHAT AREA */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8 no-scrollbar relative w-full max-w-4xl mx-auto">
+      <div className={`flex-1 overflow-y-auto px-4 ${isCompact ? "py-4 space-y-4" : "md:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8"} no-scrollbar relative w-full max-w-4xl mx-auto`}>
         {messages.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <WelcomeCard userName={currentUser.name.split(' ')[0]} onAction={handleSendMessage} />
@@ -483,23 +491,23 @@ export default function DrishtiBot({ currentUser, issues, onNavigate }: DrishtiB
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                className={`flex gap-3 md:gap-5 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                className={`flex gap-2.5 md:gap-5 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
               >
                 {msg.role === "bot" && (
-                  <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20 mt-1 md:mt-1.5">
-                    <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-blue-400" />
+                  <div className={`${isCompact ? "w-5 h-5 mt-0.5" : "w-6 h-6 md:w-8 md:h-8 mt-1 md:mt-1.5"} rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20`}>
+                    <Sparkles className={`${isCompact ? "w-2.5 h-2.5" : "w-3 h-3 md:w-4 md:h-4"} text-blue-400`} />
                   </div>
                 )}
                 
-                <div className={`flex flex-col gap-2 md:gap-3 max-w-full ${msg.role === "user" ? "items-end" : "items-start w-full"}`}>
+                <div className={`flex flex-col gap-1.5 ${isCompact ? "" : "md:gap-3"} max-w-full ${msg.role === "user" ? "items-end" : "items-start w-full"}`}>
                   <div className={`${
                     msg.role === "user" 
-                      ? "px-5 md:px-6 py-3.5 md:py-4.5 rounded-[24px] md:rounded-[28px] rounded-tr-none bg-gradient-to-b from-slate-800 to-slate-850/95 text-white border border-white/10 max-w-[92%] md:max-w-[80%] lg:max-w-[70%] shadow-md shadow-slate-950/20 leading-[1.6] md:leading-[1.75] text-[14px] md:text-[15px] tracking-wide break-words" 
-                      : "text-slate-200 w-full max-w-[95%] md:max-w-[85%] lg:max-w-[75%] py-2 md:py-2.5 px-1 md:px-2 leading-[1.6] md:leading-[1.75] text-[14px] md:text-[15px] tracking-wide break-words"
+                      ? `${isCompact ? "px-4 py-2.5 rounded-[18px] text-xs" : "px-5 md:px-6 py-3.5 md:py-4.5 rounded-[24px] md:rounded-[28px] text-[14px] md:text-[15px]"} rounded-tr-none bg-gradient-to-b from-slate-800 to-slate-850/95 text-white border border-white/10 max-w-[92%] md:max-w-[80%] lg:max-w-[70%] shadow-md shadow-slate-950/20 leading-[1.6] md:leading-[1.75] tracking-wide break-words` 
+                      : `text-slate-200 w-full max-w-[95%] md:max-w-[85%] lg:max-w-[75%] ${isCompact ? "py-1 px-1 text-xs" : "py-2 md:py-2.5 px-1 md:px-2 text-[14px] md:text-[15px]"} leading-[1.6] md:leading-[1.75] tracking-wide break-words`
                   }`}>
                     {msg.role === "user" && msg.metadata?.image && (
                       <div className="mb-3 max-w-full rounded-2xl overflow-hidden border border-white/10 shadow-lg">
-                        <img src={msg.metadata.image} alt="User attachment" className="w-full max-h-60 object-cover" referrerPolicy="no-referrer" />
+                        <img src={msg.metadata.image as string} alt="User attachment" className="w-full max-h-60 object-cover" referrerPolicy="no-referrer" />
                       </div>
                     )}
                     {msg.id === "welcome" && isFirstLoad ? (
@@ -513,7 +521,7 @@ export default function DrishtiBot({ currentUser, issues, onNavigate }: DrishtiB
                       <div className="mt-6 space-y-4">
                         {msg.type === "issue" && msg.metadata && (
                           <IssueSummaryCard 
-                            issue={msg.metadata} 
+                            issue={msg.metadata as IssueReport} 
                             onOpen={() => onNavigate?.("feed")}
                           />
                         )}
@@ -610,7 +618,7 @@ export default function DrishtiBot({ currentUser, issues, onNavigate }: DrishtiB
       </div>
 
       {/* INPUT AREA: Floating Design */}
-      <div className="pb-6 md:pb-8 pt-4 space-y-4 md:space-y-5 relative max-w-4xl mx-auto w-full px-4 md:px-6 lg:px-8">
+      <div className={`${isCompact ? "pb-4 pt-2 px-4 space-y-2.5" : "pb-6 md:pb-8 pt-4 space-y-4 md:space-y-5 px-4 md:px-6 lg:px-8"} relative max-w-4xl mx-auto w-full`}>
         <input 
           type="file" 
           ref={fileInputRef} 
@@ -620,8 +628,8 @@ export default function DrishtiBot({ currentUser, issues, onNavigate }: DrishtiB
         />
 
         {selectedImage && (
-          <div className="absolute bottom-[80px] md:bottom-[90px] left-4 md:left-6 lg:left-8 bg-slate-900/90 border border-white/10 rounded-2xl p-2 flex items-center gap-2 shadow-2xl backdrop-blur-md z-20">
-            <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-lg overflow-hidden border border-white/10 shrink-0">
+          <div className={`absolute ${isCompact ? "bottom-[60px] left-4" : "bottom-[80px] md:bottom-[90px] left-4 md:left-6 lg:left-8"} bg-slate-900/90 border border-white/10 rounded-2xl p-2 flex items-center gap-2 shadow-2xl backdrop-blur-md z-20`}>
+            <div className={`relative ${isCompact ? "w-10 h-10" : "w-12 h-12 md:w-14 md:h-14"} rounded-lg overflow-hidden border border-white/10 shrink-0`}>
               <img src={selectedImage.previewUrl} alt="Selected preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               <button 
                 type="button" 
@@ -631,9 +639,9 @@ export default function DrishtiBot({ currentUser, issues, onNavigate }: DrishtiB
                 <X className="w-3 h-3" />
               </button>
             </div>
-            <div className="pr-2 md:pr-3">
-              <p className="text-[8px] md:text-[9px] font-black uppercase text-blue-400 tracking-wider">Vision Attachment</p>
-              <p className="text-[10px] md:text-xs font-bold text-slate-300">Ready for Vision AI analysis</p>
+            <div className="pr-2">
+              <p className="text-[8px] font-black uppercase text-blue-400 tracking-wider">Vision Attachment</p>
+              <p className="text-[10px] font-bold text-slate-300">Ready for Vision AI</p>
             </div>
           </div>
         )}
@@ -647,15 +655,15 @@ export default function DrishtiBot({ currentUser, issues, onNavigate }: DrishtiB
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 rounded-2xl md:rounded-3xl blur opacity-0 group-focus-within:opacity-100 transition duration-500" />
             
             <div className="relative flex items-center">
-              <div className="absolute left-3 md:left-5 text-slate-500 group-focus-within:text-blue-500 transition-colors flex items-center gap-2 md:gap-3">
-                <MessageSquare className="hidden sm:block w-4 h-4 md:w-5 md:h-5" />
+              <div className={`absolute ${isCompact ? "left-2.5" : "left-3 md:left-5"} text-slate-500 group-focus-within:text-blue-500 transition-colors flex items-center gap-2`}>
+                {!isCompact && <MessageSquare className="hidden sm:block w-4 h-4 md:w-5 md:h-5" />}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className="p-1 md:p-1.5 text-slate-400 hover:text-blue-400 hover:bg-white/5 rounded-lg transition-all cursor-pointer"
                   title="Upload image to Vision AI"
                 >
-                  <Camera className="w-4 h-4 md:w-5 md:h-5" />
+                  <Camera className={`${isCompact ? "w-4 h-4" : "w-4 h-4 md:w-5 md:h-5"}`} />
                 </button>
               </div>
               <input
@@ -663,12 +671,12 @@ export default function DrishtiBot({ currentUser, issues, onNavigate }: DrishtiB
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder="Ask about your city or civic services..."
-                className="w-full bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-[20px] md:rounded-[24px] pl-12 sm:pl-20 md:pl-24 pr-12 md:pr-16 py-4 md:py-6 text-sm md:text-base text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500/70 focus:ring-1 focus:ring-blue-500/30 transition-all shadow-2xl"
+                className={`w-full bg-slate-900/60 backdrop-blur-xl border border-white/10 ${isCompact ? "rounded-xl pl-9 pr-9 py-3 text-xs" : "rounded-[20px] md:rounded-[24px] pl-12 sm:pl-20 md:pl-24 pr-12 md:pr-16 py-4 md:py-6 text-sm md:text-base"} text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500/70 focus:ring-1 focus:ring-blue-500/30 transition-all shadow-2xl`}
               />
               <button
                 type="button"
                 onClick={toggleRecording}
-                className={`absolute right-2 md:right-4 p-2 md:p-3 rounded-xl md:rounded-2xl transition-all cursor-pointer ${
+                className={`absolute ${isCompact ? "right-1.5 p-1.5" : "right-2 md:right-4 p-2 md:p-3"} rounded-xl md:rounded-2xl transition-all cursor-pointer ${
                   isRecording 
                     ? 'bg-red-500 text-white shadow-[0_0_25px_rgba(239,68,68,0.5)] scale-110' 
                     : 'text-slate-400 hover:text-white hover:bg-white/10'
@@ -679,13 +687,13 @@ export default function DrishtiBot({ currentUser, issues, onNavigate }: DrishtiB
                     {[0, 1, 2, 3].map(i => (
                       <motion.div 
                         key={i}
-                        animate={{ height: [4, 16, 4] }} 
+                        animate={{ height: [4, 12, 4] }} 
                         transition={{ repeat: Infinity, duration: 0.6, delay: i * 0.1 }} 
                         className="w-0.5 bg-white rounded-full" 
                       />
                     ))}
                   </div>
-                ) : <Mic className="w-4 h-4 md:w-5 md:h-5" />}
+                ) : <Mic className={`${isCompact ? "w-4 h-4" : "w-4 h-4 md:w-5 md:h-5"}`} />}
               </button>
             </div>
           </div>
@@ -693,10 +701,10 @@ export default function DrishtiBot({ currentUser, issues, onNavigate }: DrishtiB
           <button
             type="submit"
             disabled={(!inputText.trim() && !selectedImage) || loading}
-            className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 hover:bg-blue-500 text-white rounded-[16px] md:rounded-[24px] flex items-center justify-center shadow-[0_8px_20px_rgba(37,99,235,0.3)] md:shadow-[0_12px_30px_rgba(37,99,235,0.4)] hover:shadow-[0_15px_40px_rgba(37,99,235,0.5)] transition-all disabled:opacity-30 disabled:shadow-none group active:scale-90 cursor-pointer overflow-hidden relative shrink-0"
+            className={`${isCompact ? "w-10 h-10 rounded-xl" : "w-12 h-12 md:w-16 md:h-16 rounded-[16px] md:rounded-[24px]"} bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-[0_8px_20px_rgba(37,99,235,0.3)] md:shadow-[0_12px_30px_rgba(37,99,235,0.4)] hover:shadow-[0_15px_40px_rgba(37,99,235,0.5)] transition-all disabled:opacity-30 disabled:shadow-none group active:scale-90 cursor-pointer overflow-hidden relative shrink-0`}
           >
             <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-            <Send className="w-5 h-5 md:w-6 md:h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform relative z-10" />
+            <Send className={`${isCompact ? "w-4 h-4" : "w-5 h-5 md:w-6 md:h-6"} group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform relative z-10`} />
           </button>
         </form>
       </div>

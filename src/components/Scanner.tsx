@@ -5,17 +5,18 @@ import { Upload, Scan, Download, CheckCircle2, RefreshCw, AlertCircle } from "lu
 interface ScannerProps {
   imageUrl: string;
   setImageUrl: (url: string) => void;
-  onScanComplete: (score: number, isCorrect: boolean) => void;
+  onScanComplete: (score: number, isCorrect: boolean, fileName?: string) => void;
 }
 
 export default function Scanner({ imageUrl, setImageUrl, onScanComplete }: ScannerProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [scanScore, setScanScore] = useState<number | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  const [fileName, setFileName] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Trigger scanning process
-  const startScanProcess = (targetUrl: string) => {
+  const startScanProcess = (targetUrl: string, name?: string) => {
     if (!targetUrl) return;
     setIsScanning(true);
     setScanScore(null);
@@ -29,19 +30,20 @@ export default function Scanner({ imageUrl, setImageUrl, onScanComplete }: Scann
       const correct = score >= 85;
       setScanScore(score);
       setIsCorrect(correct);
-      onScanComplete(score, correct);
+      onScanComplete(score, correct, name || fileName);
     }, 2400);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      setFileName(file.name);
       const reader = new FileReader();
       reader.onloadend = () => {
         const resultUrl = reader.result as string;
         setImageUrl(resultUrl);
         // Immediately start scanning upon image upload
-        startScanProcess(resultUrl);
+        startScanProcess(resultUrl, file.name);
       };
       reader.readAsDataURL(file);
     }
