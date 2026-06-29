@@ -285,25 +285,25 @@ Optimized for mobile (320px), tablet (641px), desktop (1024px+). Identical featu
 ## 📸 Screenshots
 
 ### Login
-![Login Screen](./screenshots/login.png)
+![Login Screen](assets/screenshots/login.png)
 
 ### Community Feed
-![Community Feed](./screenshots/community-feed.png)
+![Community Feed](assets/screenshots/community-feed.png)
 
 ### Priority Issues
-![Priority Issues](./screenshots/priority-issues.png)
+![Priority Issues](assets/screenshots/priority-issues.png)
 
 ### Issue Map
-![Issue Map](./screenshots/issue-map.png)
+![Issue Map](assets/screenshots/issue-map.png)
 
 ### DrishtiBot AI
-![DrishtiBot AI](./screenshots/drishtibot.png)
+![DrishtiBot AI](assets/screenshots/drishtibot.png)
 
 ### Reward Store
-![Reward Store](./screenshots/reward-store.png)
+![Reward Store](assets/screenshots/reward-store.png)
 
 ### Profile
-![Profile](./screenshots/profile.png)
+![Profile](assets/screenshots/profile.png)
 
 ---
 
