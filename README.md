@@ -1,6 +1,7 @@
 <div align="center">
 
 # 🌍 CivicPulse AI
+[🚀 Live Demo](https://civicpulse-ai-81317196678.asia-southeast1.run.app) • [📖 Documentation](#-installation) • [🐞 Report Issue](https://github.com/anubhawverma2009-oss/CivicPulse/issues) • [⭐ GitHub](https://github.com/anubhawverma2009-oss/CivicPulse)
 
 **Empowering Communities Through Hyperlocal Civic Action**
 
@@ -9,8 +10,6 @@
 [![React](https://img.shields.io/badge/React-18%2B-61DAFB?style=for-the-badge&logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0%2B-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org)
 [![Google AI](https://img.shields.io/badge/Powered%20by-Google%20AI-4285F4?style=for-the-badge)](https://ai.google.dev)
-
-[🚀 Live Demo](https://civicpulse-ai-81317196678.asia-southeast1.run.app) • [📖 Documentation](#-installation) • [🐞 Report Issue](https://github.com/anubhawverma2009-oss/CivicPulse/issues) • [⭐ GitHub](https://github.com/anubhawverma2009-oss/CivicPulse)
 
 **Vibe2Ship 2026 Hackathon Submission** | Problem Statement: *Community Hero – Hyperlocal Problem Solver*
 
@@ -284,8 +283,6 @@ Optimized for mobile (320px), tablet (641px), desktop (1024px+). Identical featu
 ---
 
 ## 📸 Screenshots
-
-> Screenshots will be added here before final submission.
 
 ### Login
 ![Login Screen](./screenshots/login.png)
